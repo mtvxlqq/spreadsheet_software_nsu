@@ -12,8 +12,10 @@ set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
 add_executable(core_tests
-    core/test_smoke.cpp
+    core/test_address.cpp
+    core/test_value.cpp
 )
-target_link_libraries(core_tests PRIVATE GTest::gtest_main)
+target_include_directories(core_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(core_tests PRIVATE ss_core GTest::gtest_main)
 ss_set_warnings(core_tests)
 gtest_discover_tests(core_tests)
