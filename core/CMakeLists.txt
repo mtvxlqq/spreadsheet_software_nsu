@@ -1,5 +1,6 @@
 add_library(ss_core STATIC
     src/address.cpp
+    src/lexer.cpp
     src/number_format.cpp
     src/text.cpp
     src/value.cpp

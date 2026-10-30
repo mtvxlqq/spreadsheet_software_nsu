@@ -4,8 +4,8 @@
 
 namespace ss::core {
 
-// Способ показать число в ячейке (Strategy).
-// [→ этап 2: FixedFormat, PercentFormat — новые наследники]
+// Как показывать число в ячейке (паттерн Strategy).
+// На втором этапе сюда добавятся FixedFormat и PercentFormat.
 class NumberFormat {
 public:
     virtual ~NumberFormat() = default;
@@ -20,7 +20,7 @@ protected:
     NumberFormat() = default;
 };
 
-// До 10 значащих цифр без хвостовых нулей: 3, 0.1, 0.3333333333, 1e+20.
+// до 10 значащих цифр без лишних нулей: 3, 0.1, 0.3333333333, 1e+20
 class GeneralFormat final : public NumberFormat {
 public:
     std::string format(double value) const override;

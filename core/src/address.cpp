@@ -8,43 +8,43 @@ namespace ss::core {
 
 namespace {
 
-bool isAsciiLetter(char c) {
+bool is_ascii_letter(char c) {
     return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z');
 }
 
-bool isAsciiDigit(char c) {
+bool is_ascii_digit(char c) {
     return c >= '0' && c <= '9';
 }
 
-// Буквы столбца → индекс с нуля. Слишком длинное имя «упирается» в kMaxCols —
-// первый столбец за пределами листа. Так не бывает переполнения int.
-int columnFromLetters(std::string_view letters) {
-    int number = 0;  // нумерация с единицы: A = 1, Z = 26, AA = 27
+// "AB" -> 27. Если букв слишком много, сразу возвращаем max_cols (первый
+// столбец за листом), иначе на длинных именах переполнится int.
+int column_from_letters(std::string_view letters) {
+    int number = 0;  // A=1, Z=26, AA=27
     for (const char c : letters) {
         const int letter = (c >= 'a') ? c - 'a' : c - 'A';
         number = (number * 26) + letter + 1;
-        if (number > kMaxCols) {
-            return kMaxCols;
+        if (number > max_cols) {
+            return max_cols;
         }
     }
     return number - 1;
 }
 
-// Номер строки → индекс с нуля. Слишком большой номер «упирается» в kMaxRows.
-int rowFromDigits(std::string_view digits) {
+// "12" -> 11. Слишком большой номер обрезаем до max_rows по той же причине.
+int row_from_digits(std::string_view digits) {
     int number = 0;
     for (const char c : digits) {
         number = (number * 10) + (c - '0');
-        if (number > kMaxRows) {
-            return kMaxRows;
+        if (number > max_rows) {
+            return max_rows;
         }
     }
-    return number - 1;  // "A0" даст -1: тоже за пределами листа
+    return number - 1;  // у "A0" выйдет -1, это тоже вне листа
 }
 
 }  // namespace
 
-std::string columnName(int col) {
+std::string column_name(int col) {
     std::string name;
     for (int number = col + 1; number > 0; number = (number - 1) / 26) {
         name.insert(name.begin(), static_cast<char>('A' + ((number - 1) % 26)));
@@ -53,57 +53,57 @@ std::string columnName(int col) {
 }
 
 CellAddress CellAddress::parse(std::string_view text) {
-    const std::optional<CellRef> ref = CellRef::tryParse(text);
-    if (!ref || ref->absRow || ref->absCol || !ref->addr.isValid()) {
+    const std::optional<CellRef> ref = CellRef::try_parse(text);
+    if (!ref || ref->abs_row || ref->abs_col || !ref->addr.is_valid()) {
         throw AddressError("неверный адрес ячейки: \"" + std::string(text) + "\"");
     }
     return ref->addr;
 }
 
-bool CellAddress::isValid() const {
-    return row >= 0 && row < kMaxRows && col >= 0 && col < kMaxCols;
+bool CellAddress::is_valid() const {
+    return row >= 0 && row < max_rows && col >= 0 && col < max_cols;
 }
 
-std::string CellAddress::toString() const {
-    return columnName(col) + std::to_string(row + 1);
+std::string CellAddress::to_string() const {
+    return column_name(col) + std::to_string(row + 1);
 }
 
-std::optional<CellRef> CellRef::tryParse(std::string_view text) {
+std::optional<CellRef> CellRef::try_parse(std::string_view text) {
     CellRef ref;
     std::size_t pos = 0;
     if (pos < text.size() && text[pos] == '$') {
-        ref.absCol = true;
+        ref.abs_col = true;
         ++pos;
     }
-    const std::size_t lettersStart = pos;
-    while (pos < text.size() && isAsciiLetter(text[pos])) {
+    const std::size_t letters_start = pos;
+    while (pos < text.size() && is_ascii_letter(text[pos])) {
         ++pos;
     }
-    const std::string_view letters = text.substr(lettersStart, pos - lettersStart);
+    const std::string_view letters = text.substr(letters_start, pos - letters_start);
     if (pos < text.size() && text[pos] == '$') {
-        ref.absRow = true;
+        ref.abs_row = true;
         ++pos;
     }
-    const std::size_t digitsStart = pos;
-    while (pos < text.size() && isAsciiDigit(text[pos])) {
+    const std::size_t digits_start = pos;
+    while (pos < text.size() && is_ascii_digit(text[pos])) {
         ++pos;
     }
-    const std::string_view digits = text.substr(digitsStart, pos - digitsStart);
+    const std::string_view digits = text.substr(digits_start, pos - digits_start);
 
     if (letters.empty() || digits.empty() || pos != text.size()) {
         return std::nullopt;
     }
-    ref.addr = CellAddress{.row = rowFromDigits(digits), .col = columnFromLetters(letters)};
+    ref.addr = CellAddress{.row = row_from_digits(digits), .col = column_from_letters(letters)};
     return ref;
 }
 
-std::string CellRef::toString() const {
+std::string CellRef::to_string() const {
     std::string text;
-    if (absCol) {
+    if (abs_col) {
         text += '$';
     }
-    text += columnName(addr.col);
-    if (absRow) {
+    text += column_name(addr.col);
+    if (abs_row) {
         text += '$';
     }
     text += std::to_string(addr.row + 1);
@@ -125,7 +125,7 @@ std::size_t Range::size() const {
     return static_cast<std::size_t>(rows) * static_cast<std::size_t>(cols);
 }
 
-void Range::forEach(const std::function<void(CellAddress)>& fn) const {
+void Range::for_each(const std::function<void(CellAddress)>& fn) const {
     for (int row = from_.row; row <= to_.row; ++row) {
         for (int col = from_.col; col <= to_.col; ++col) {
             fn(CellAddress{.row = row, .col = col});
@@ -133,8 +133,8 @@ void Range::forEach(const std::function<void(CellAddress)>& fn) const {
     }
 }
 
-std::string Range::toString() const {
-    return from_.toString() + ":" + to_.toString();
+std::string Range::to_string() const {
+    return from_.to_string() + ":" + to_.to_string();
 }
 
 }  // namespace ss::core

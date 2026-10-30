@@ -8,8 +8,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 include(Warnings)
-# Флаги санитайзеров добавляются глобально, поэтому модуль подключается
-# до объявления любых целей (включая GoogleTest).
+# подключаем до всех целей, иначе флаги санитайзеров не попадут в gtest
 include(Sanitizers)
 include(CheckLayering)
 

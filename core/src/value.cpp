@@ -7,47 +7,45 @@ namespace ss::core {
 
 namespace {
 
-std::partial_ordering compareIgnoreCase(std::string_view lhs, std::string_view rhs) {
-    return toLowerAscii(lhs) <=> toLowerAscii(rhs);
+std::partial_ordering compare_ignore_case(std::string_view lhs, std::string_view rhs) {
+    return to_lower_ascii(lhs) <=> to_lower_ascii(rhs);
 }
 
 }  // namespace
 
-std::string_view errorText(ErrorCode code) {
+std::string_view error_text(ErrorCode code) {
     switch (code) {
-        case ErrorCode::DIV0:
+        case ErrorCode::Div0:
             return "#DIV/0!";
-        case ErrorCode::REF:
+        case ErrorCode::Ref:
             return "#REF!";
-        case ErrorCode::NAME:
+        case ErrorCode::Name:
             return "#NAME?";
-        case ErrorCode::CYCLE:
+        case ErrorCode::Cycle:
             return "#CYCLE!";
-        case ErrorCode::VALUE:
+        case ErrorCode::Value:
             return "#VALUE!";
     }
-    return "#VALUE!";  // недостижимо: все коды разобраны выше
+    return "#VALUE!";  // сюда не попадём, но без return gcc ругается
 }
 
-std::optional<std::partial_ordering> Value::compareWithNumber(double /*lhs*/) const {
+std::optional<std::partial_ordering> Value::compare_with_number(double /*lhs*/) const {
     return std::nullopt;
 }
 
-std::optional<std::partial_ordering> Value::compareWithString(std::string_view /*lhs*/) const {
+std::optional<std::partial_ordering> Value::compare_with_string(std::string_view /*lhs*/) const {
     return std::nullopt;
 }
 
-std::optional<std::partial_ordering> Value::compareWithEmpty() const {
+std::optional<std::partial_ordering> Value::compare_with_empty() const {
     return std::nullopt;
 }
 
-// --- EmptyValue ---
-
-std::optional<double> EmptyValue::asNumber() const {
+std::optional<double> EmptyValue::as_number() const {
     return 0.0;
 }
 
-std::string EmptyValue::toText() const {
+std::string EmptyValue::to_text() const {
     return "";
 }
 
@@ -56,28 +54,26 @@ std::string EmptyValue::display(const NumberFormat& /*format*/) const {
 }
 
 std::optional<std::partial_ordering> EmptyValue::compare(const Value& other) const {
-    return other.compareWithEmpty();
+    return other.compare_with_empty();
 }
 
-std::optional<std::partial_ordering> EmptyValue::compareWithNumber(double lhs) const {
+std::optional<std::partial_ordering> EmptyValue::compare_with_number(double lhs) const {
     return lhs <=> 0.0;
 }
 
-std::optional<std::partial_ordering> EmptyValue::compareWithString(std::string_view lhs) const {
-    return compareIgnoreCase(lhs, "");
+std::optional<std::partial_ordering> EmptyValue::compare_with_string(std::string_view lhs) const {
+    return compare_ignore_case(lhs, "");
 }
 
-std::optional<std::partial_ordering> EmptyValue::compareWithEmpty() const {
+std::optional<std::partial_ordering> EmptyValue::compare_with_empty() const {
     return std::partial_ordering::equivalent;
 }
 
-// --- NumberValue ---
-
-std::optional<double> NumberValue::asNumber() const {
+std::optional<double> NumberValue::as_number() const {
     return value_;
 }
 
-std::string NumberValue::toText() const {
+std::string NumberValue::to_text() const {
     return GeneralFormat{}.format(value_);
 }
 
@@ -86,24 +82,22 @@ std::string NumberValue::display(const NumberFormat& format) const {
 }
 
 std::optional<std::partial_ordering> NumberValue::compare(const Value& other) const {
-    return other.compareWithNumber(value_);
+    return other.compare_with_number(value_);
 }
 
-std::optional<std::partial_ordering> NumberValue::compareWithNumber(double lhs) const {
+std::optional<std::partial_ordering> NumberValue::compare_with_number(double lhs) const {
     return lhs <=> value_;
 }
 
-std::optional<std::partial_ordering> NumberValue::compareWithEmpty() const {
+std::optional<std::partial_ordering> NumberValue::compare_with_empty() const {
     return 0.0 <=> value_;
 }
 
-// --- StringValue ---
-
-std::optional<double> StringValue::asNumber() const {
+std::optional<double> StringValue::as_number() const {
     return std::nullopt;
 }
 
-std::string StringValue::toText() const {
+std::string StringValue::to_text() const {
     return text_;
 }
 
@@ -112,52 +106,47 @@ std::string StringValue::display(const NumberFormat& /*format*/) const {
 }
 
 std::optional<std::partial_ordering> StringValue::compare(const Value& other) const {
-    return other.compareWithString(text_);
+    return other.compare_with_string(text_);
 }
 
-std::optional<std::partial_ordering> StringValue::compareWithString(std::string_view lhs) const {
-    return compareIgnoreCase(lhs, text_);
+std::optional<std::partial_ordering> StringValue::compare_with_string(std::string_view lhs) const {
+    return compare_ignore_case(lhs, text_);
 }
 
-std::optional<std::partial_ordering> StringValue::compareWithEmpty() const {
-    return compareIgnoreCase("", text_);
+std::optional<std::partial_ordering> StringValue::compare_with_empty() const {
+    return compare_ignore_case("", text_);
 }
 
-// --- ErrorValue ---
-
-std::optional<double> ErrorValue::asNumber() const {
+std::optional<double> ErrorValue::as_number() const {
     return std::nullopt;
 }
 
-std::string ErrorValue::toText() const {
-    return std::string(errorText(code_));
+std::string ErrorValue::to_text() const {
+    return std::string(error_text(code_));
 }
 
 std::string ErrorValue::display(const NumberFormat& /*format*/) const {
-    return toText();
+    return to_text();
 }
 
 std::optional<std::partial_ordering> ErrorValue::compare(const Value& /*other*/) const {
     return std::nullopt;
 }
 
-// --- фабрики ---
-
-ValuePtr makeNumber(double value) {
+ValuePtr make_number(double value) {
     return std::make_shared<const NumberValue>(value);
 }
 
-ValuePtr makeString(std::string text) {
+ValuePtr make_string(std::string text) {
     return std::make_shared<const StringValue>(std::move(text));
 }
 
-ValuePtr makeError(ErrorCode code) {
+ValuePtr make_error(ErrorCode code) {
     return std::make_shared<const ErrorValue>(code);
 }
 
-ValuePtr emptyValue() {
-    // Значение неизменяемо, поэтому один общий экземпляр безопасно
-    // разделять между всеми ячейками и потоками.
+ValuePtr empty_value() {
+    // пустое значение не меняется, так что хватит одного объекта на всех
     static const ValuePtr instance = std::make_shared<const EmptyValue>();
     return instance;
 }

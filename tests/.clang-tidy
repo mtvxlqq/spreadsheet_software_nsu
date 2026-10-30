@@ -1,0 +1,7 @@
+---
+# эти две проверки ложно срабатывают на макросах gtest:
+# после ASSERT_TRUE(opt.has_value()) обращаться к optional уже можно
+InheritParentConfig: true
+Checks: >
+  -bugprone-unchecked-optional-access,
+  -readability-function-cognitive-complexity

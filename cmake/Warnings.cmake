@@ -1,5 +1,4 @@
-# Предупреждения включаются только для своих целей: чужой код (GoogleTest)
-# не обязан собираться с нашими флагами.
+# только для своих целей: gtest с нашим -Werror может и не собраться
 function(ss_set_warnings target)
     target_compile_options(${target} PRIVATE
         -Wall

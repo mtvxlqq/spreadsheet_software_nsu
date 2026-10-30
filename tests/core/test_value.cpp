@@ -33,91 +33,91 @@ TEST(GeneralFormat, ShowsNegativeZeroAsZero) {
 }
 
 TEST(NumberValue, BehavesAsNumber) {
-    const ValuePtr value = makeNumber(0.1);
-    EXPECT_EQ(value->asNumber(), 0.1);
-    EXPECT_EQ(value->toText(), "0.1");
+    const ValuePtr value = make_number(0.1);
+    EXPECT_EQ(value->as_number(), 0.1);
+    EXPECT_EQ(value->to_text(), "0.1");
     EXPECT_EQ(value->display(GeneralFormat{}), "0.1");
-    EXPECT_FALSE(value->isError());
-    EXPECT_FALSE(value->isEmpty());
+    EXPECT_FALSE(value->is_error());
+    EXPECT_FALSE(value->is_empty());
 }
 
 TEST(StringValue, IsNotNumberEvenWhenLooksLikeOne) {
-    const ValuePtr value = makeString("123");
-    EXPECT_EQ(value->asNumber(), std::nullopt);
-    EXPECT_EQ(value->toText(), "123");
+    const ValuePtr value = make_string("123");
+    EXPECT_EQ(value->as_number(), std::nullopt);
+    EXPECT_EQ(value->to_text(), "123");
     EXPECT_EQ(value->display(GeneralFormat{}), "123");
-    EXPECT_FALSE(value->isError());
-    EXPECT_FALSE(value->isEmpty());
+    EXPECT_FALSE(value->is_error());
+    EXPECT_FALSE(value->is_empty());
 }
 
 TEST(ErrorValue, ShowsSpreadsheetErrorText) {
-    EXPECT_EQ(makeError(ErrorCode::DIV0)->toText(), "#DIV/0!");
-    EXPECT_EQ(makeError(ErrorCode::REF)->toText(), "#REF!");
-    EXPECT_EQ(makeError(ErrorCode::NAME)->toText(), "#NAME?");
-    EXPECT_EQ(makeError(ErrorCode::CYCLE)->toText(), "#CYCLE!");
-    EXPECT_EQ(makeError(ErrorCode::VALUE)->display(GeneralFormat{}), "#VALUE!");
+    EXPECT_EQ(make_error(ErrorCode::Div0)->to_text(), "#DIV/0!");
+    EXPECT_EQ(make_error(ErrorCode::Ref)->to_text(), "#REF!");
+    EXPECT_EQ(make_error(ErrorCode::Name)->to_text(), "#NAME?");
+    EXPECT_EQ(make_error(ErrorCode::Cycle)->to_text(), "#CYCLE!");
+    EXPECT_EQ(make_error(ErrorCode::Value)->display(GeneralFormat{}), "#VALUE!");
 }
 
 TEST(ErrorValue, AnswersEveryBaseMethodWithoutThrowing) {
-    const ValuePtr value = makeError(ErrorCode::REF);
-    EXPECT_TRUE(value->isError());
-    EXPECT_FALSE(value->isEmpty());
-    EXPECT_EQ(value->asNumber(), std::nullopt);
+    const ValuePtr value = make_error(ErrorCode::Ref);
+    EXPECT_TRUE(value->is_error());
+    EXPECT_FALSE(value->is_empty());
+    EXPECT_EQ(value->as_number(), std::nullopt);
 }
 
 TEST(EmptyValue, IsZeroInArithmeticAndBlankOnScreen) {
-    const ValuePtr value = emptyValue();
-    EXPECT_EQ(value->asNumber(), 0.0);
-    EXPECT_EQ(value->toText(), "");
+    const ValuePtr value = empty_value();
+    EXPECT_EQ(value->as_number(), 0.0);
+    EXPECT_EQ(value->to_text(), "");
     EXPECT_EQ(value->display(GeneralFormat{}), "");
-    EXPECT_TRUE(value->isEmpty());
-    EXPECT_FALSE(value->isError());
+    EXPECT_TRUE(value->is_empty());
+    EXPECT_FALSE(value->is_error());
 }
 
 TEST(EmptyValue, IsSharedInstance) {
-    EXPECT_EQ(emptyValue(), emptyValue());
+    EXPECT_EQ(empty_value(), empty_value());
 }
 
 TEST(ValueCompare, Numbers) {
-    EXPECT_EQ(compare(makeNumber(1), makeNumber(2)), std::partial_ordering::less);
-    EXPECT_EQ(compare(makeNumber(2), makeNumber(2)), std::partial_ordering::equivalent);
-    EXPECT_EQ(compare(makeNumber(3), makeNumber(2)), std::partial_ordering::greater);
+    EXPECT_EQ(compare(make_number(1), make_number(2)), std::partial_ordering::less);
+    EXPECT_EQ(compare(make_number(2), make_number(2)), std::partial_ordering::equivalent);
+    EXPECT_EQ(compare(make_number(3), make_number(2)), std::partial_ordering::greater);
 }
 
 TEST(ValueCompare, StringsIgnoreCase) {
-    EXPECT_EQ(compare(makeString("abc"), makeString("ABC")), std::partial_ordering::equivalent);
-    EXPECT_EQ(compare(makeString("a"), makeString("b")), std::partial_ordering::less);
-    EXPECT_EQ(compare(makeString("B"), makeString("a")), std::partial_ordering::greater);
+    EXPECT_EQ(compare(make_string("abc"), make_string("ABC")), std::partial_ordering::equivalent);
+    EXPECT_EQ(compare(make_string("a"), make_string("b")), std::partial_ordering::less);
+    EXPECT_EQ(compare(make_string("B"), make_string("a")), std::partial_ordering::greater);
 }
 
 TEST(ValueCompare, NumberAndStringAreIncomparable) {
-    EXPECT_EQ(compare(makeNumber(1), makeString("1")), std::nullopt);
-    EXPECT_EQ(compare(makeString("1"), makeNumber(1)), std::nullopt);
+    EXPECT_EQ(compare(make_number(1), make_string("1")), std::nullopt);
+    EXPECT_EQ(compare(make_string("1"), make_number(1)), std::nullopt);
 }
 
 TEST(ValueCompare, EmptyIsZeroForNumbers) {
-    EXPECT_EQ(compare(emptyValue(), makeNumber(0)), std::partial_ordering::equivalent);
-    EXPECT_EQ(compare(emptyValue(), makeNumber(5)), std::partial_ordering::less);
-    EXPECT_EQ(compare(makeNumber(-1), emptyValue()), std::partial_ordering::less);
+    EXPECT_EQ(compare(empty_value(), make_number(0)), std::partial_ordering::equivalent);
+    EXPECT_EQ(compare(empty_value(), make_number(5)), std::partial_ordering::less);
+    EXPECT_EQ(compare(make_number(-1), empty_value()), std::partial_ordering::less);
 }
 
 TEST(ValueCompare, EmptyIsBlankStringForStrings) {
-    EXPECT_EQ(compare(emptyValue(), makeString("")), std::partial_ordering::equivalent);
-    EXPECT_EQ(compare(emptyValue(), makeString("a")), std::partial_ordering::less);
-    EXPECT_EQ(compare(makeString("a"), emptyValue()), std::partial_ordering::greater);
+    EXPECT_EQ(compare(empty_value(), make_string("")), std::partial_ordering::equivalent);
+    EXPECT_EQ(compare(empty_value(), make_string("a")), std::partial_ordering::less);
+    EXPECT_EQ(compare(make_string("a"), empty_value()), std::partial_ordering::greater);
 }
 
 TEST(ValueCompare, EmptyEqualsEmpty) {
-    EXPECT_EQ(compare(emptyValue(), emptyValue()), std::partial_ordering::equivalent);
+    EXPECT_EQ(compare(empty_value(), empty_value()), std::partial_ordering::equivalent);
 }
 
 TEST(ValueCompare, ErrorsAreIncomparable) {
-    const ValuePtr error = makeError(ErrorCode::DIV0);
-    EXPECT_EQ(compare(error, makeNumber(1)), std::nullopt);
-    EXPECT_EQ(compare(makeNumber(1), error), std::nullopt);
-    EXPECT_EQ(compare(error, makeString("a")), std::nullopt);
-    EXPECT_EQ(compare(makeString("a"), error), std::nullopt);
-    EXPECT_EQ(compare(error, emptyValue()), std::nullopt);
-    EXPECT_EQ(compare(emptyValue(), error), std::nullopt);
+    const ValuePtr error = make_error(ErrorCode::Div0);
+    EXPECT_EQ(compare(error, make_number(1)), std::nullopt);
+    EXPECT_EQ(compare(make_number(1), error), std::nullopt);
+    EXPECT_EQ(compare(error, make_string("a")), std::nullopt);
+    EXPECT_EQ(compare(make_string("a"), error), std::nullopt);
+    EXPECT_EQ(compare(error, empty_value()), std::nullopt);
+    EXPECT_EQ(compare(empty_value(), error), std::nullopt);
     EXPECT_EQ(compare(error, error), std::nullopt);
 }

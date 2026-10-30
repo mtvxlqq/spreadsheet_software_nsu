@@ -10,51 +10,49 @@
 
 namespace ss::core {
 
-inline constexpr int kMaxRows = 65536;
-inline constexpr int kMaxCols = 702;  // столбцы A..ZZ
+inline constexpr int max_rows = 65536;
+inline constexpr int max_cols = 702;  // A..ZZ
 
-// Имя столбца по индексу с нуля: 0 → "A", 25 → "Z", 26 → "AA".
-std::string columnName(int col);
+// 0 -> "A", 25 -> "Z", 26 -> "AA"
+std::string column_name(int col);
 
-// Адрес ячейки: строка и столбец с нуля. Может указывать за пределы листа
-// (так хранится ссылка вида A99999999 из формулы) — это проверяет isValid().
+// Строка и столбец считаются с нуля. Адрес может быть и за пределами листа
+// (например, ссылка A99999999 из формулы), для этого есть is_valid().
 struct CellAddress {
     int row = 0;
     int col = 0;
 
-    // Строгий разбор "B12", регистр букв не важен.
-    // Неверный текст или адрес за пределами листа → AddressError.
+    // "B12" или "b12"; если адрес кривой или вне листа, бросает AddressError
     static CellAddress parse(std::string_view text);
 
-    bool isValid() const;
-    std::string toString() const;
+    bool is_valid() const;
+    std::string to_string() const;
 
-    // Порядок: сначала по строке, потом по столбцу.
+    // сначала по строке, потом по столбцу
     auto operator<=>(const CellAddress&) const = default;
 };
 
-// Ссылка из формулы. Флаги '$' на этапе 1 только запоминаются,
-// они понадобятся при копировании формул.
+// Ссылка из формулы. Флаги $ пока только запоминаем, понадобятся
+// на втором этапе при копировании формул.
 struct CellRef {
     CellAddress addr;
-    bool absRow = false;
-    bool absCol = false;
+    bool abs_row = false;
+    bool abs_col = false;
 
-    // "A1", "$A$1", "A$1", "$A1". nullopt — текст не похож на ссылку.
-    // Адрес за пределами листа ошибкой разбора не считается: такая ссылка
-    // при вычислении даст #REF!.
-    static std::optional<CellRef> tryParse(std::string_view text);
+    // Понимает A1, $A$1, A$1, $A1. Адрес вне листа тут не ошибка:
+    // такая ссылка потом просто посчитается в #REF!
+    static std::optional<CellRef> try_parse(std::string_view text);
 
-    std::string toString() const;
+    std::string to_string() const;
 
     bool operator==(const CellRef&) const = default;
 };
 
-// Прямоугольный диапазон, углы включительно. Всегда нормализован:
-// from() — левый верхний угол, to() — правый нижний.
+// Диапазон вроде A1:B3, углы входят. from() всегда левый верхний угол,
+// to() правый нижний. Поля закрыты, чтобы этот порядок нельзя было сломать.
 class Range {
 public:
-    // Углы можно передать в любом порядке.
+    // углы можно передать в любом порядке, B2:A1 тоже подойдёт
     Range(CellAddress corner1, CellAddress corner2);
 
     CellAddress from() const {
@@ -67,9 +65,9 @@ public:
 
     bool contains(CellAddress address) const;
     std::size_t size() const;
-    // Обход по строкам сверху вниз, в строке — слева направо.
-    void forEach(const std::function<void(CellAddress)>& fn) const;
-    std::string toString() const;
+    // по строкам, в каждой слева направо
+    void for_each(const std::function<void(CellAddress)>& fn) const;
+    std::string to_string() const;
 
     bool operator==(const Range&) const = default;
 
@@ -83,7 +81,7 @@ private:
 template <>
 struct std::hash<ss::core::CellAddress> {
     std::size_t operator()(const ss::core::CellAddress& address) const noexcept {
-        // Строка и столбец упаковываются в одно 64-битное число без потерь.
+        // row в старшие 32 бита, col в младшие, так разные адреса не совпадут
         const std::uint64_t row = static_cast<std::uint32_t>(address.row);
         const std::uint64_t col = static_cast<std::uint32_t>(address.col);
         return std::hash<std::uint64_t>{}((row << 32) | col);

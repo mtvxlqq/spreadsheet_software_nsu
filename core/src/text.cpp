@@ -2,7 +2,7 @@
 
 namespace ss::core {
 
-std::string toUpperAscii(std::string_view text) {
+std::string to_upper_ascii(std::string_view text) {
     std::string result(text);
     for (char& c : result) {
         if (c >= 'a' && c <= 'z') {
@@ -12,7 +12,7 @@ std::string toUpperAscii(std::string_view text) {
     return result;
 }
 
-std::string toLowerAscii(std::string_view text) {
+std::string to_lower_ascii(std::string_view text) {
     std::string result(text);
     for (char& c : result) {
         if (c >= 'A' && c <= 'Z') {

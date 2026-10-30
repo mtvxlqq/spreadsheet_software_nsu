@@ -5,9 +5,9 @@
 
 namespace ss::core {
 
-// Регистр меняется только у латинских букв: имена функций, адреса и
-// расширения файлов — ASCII, и разбор формул не должен зависеть от локали.
-std::string toUpperAscii(std::string_view text);
-std::string toLowerAscii(std::string_view text);
+// Меняем регистр только у латиницы: имена функций и адреса всегда ASCII,
+// а std::toupper зависит от локали.
+std::string to_upper_ascii(std::string_view text);
+std::string to_lower_ascii(std::string_view text);
 
 }  // namespace ss::core

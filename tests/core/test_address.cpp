@@ -11,7 +11,7 @@
 using ss::core::AddressError;
 using ss::core::CellAddress;
 using ss::core::CellRef;
-using ss::core::columnName;
+using ss::core::column_name;
 using ss::core::Range;
 
 TEST(CellAddress, ParsesLettersAndDigits) {
@@ -29,7 +29,7 @@ TEST(CellAddress, ParsingIgnoresCase) {
 
 TEST(CellAddress, ToStringIsInverseOfParse) {
     for (const std::string text : {"A1", "Z1", "AA1", "AZ10", "BA7", "ZZ65536"}) {
-        EXPECT_EQ(CellAddress::parse(text).toString(), text);
+        EXPECT_EQ(CellAddress::parse(text).to_string(), text);
     }
 }
 
@@ -46,19 +46,19 @@ TEST(CellAddress, RejectsAddressesOutsideSheet) {
 }
 
 TEST(CellAddress, ValidityFollowsSheetLimits) {
-    EXPECT_TRUE((CellAddress{0, 0}).isValid());
-    EXPECT_TRUE((CellAddress{65535, 701}).isValid());
-    EXPECT_FALSE((CellAddress{65536, 0}).isValid());
-    EXPECT_FALSE((CellAddress{0, 702}).isValid());
-    EXPECT_FALSE((CellAddress{-1, 0}).isValid());
+    EXPECT_TRUE((CellAddress{0, 0}).is_valid());
+    EXPECT_TRUE((CellAddress{65535, 701}).is_valid());
+    EXPECT_FALSE((CellAddress{65536, 0}).is_valid());
+    EXPECT_FALSE((CellAddress{0, 702}).is_valid());
+    EXPECT_FALSE((CellAddress{-1, 0}).is_valid());
 }
 
 TEST(CellAddress, ColumnNames) {
-    EXPECT_EQ(columnName(0), "A");
-    EXPECT_EQ(columnName(25), "Z");
-    EXPECT_EQ(columnName(26), "AA");
-    EXPECT_EQ(columnName(701), "ZZ");
-    EXPECT_EQ(columnName(702), "AAA");
+    EXPECT_EQ(column_name(0), "A");
+    EXPECT_EQ(column_name(25), "Z");
+    EXPECT_EQ(column_name(26), "AA");
+    EXPECT_EQ(column_name(701), "ZZ");
+    EXPECT_EQ(column_name(702), "AAA");
 }
 
 TEST(CellAddress, OrderedByRowThenColumn) {
@@ -75,45 +75,31 @@ TEST(CellAddress, HashDistinguishesRowAndColumn) {
 }
 
 TEST(CellRef, ParsesAbsoluteMarkers) {
-    const auto plain = CellRef::tryParse("A1");
-    ASSERT_TRUE(plain.has_value());
-    EXPECT_FALSE(plain->absCol);
-    EXPECT_FALSE(plain->absRow);
-
-    const auto both = CellRef::tryParse("$B$2");
-    ASSERT_TRUE(both.has_value());
-    EXPECT_EQ(both->addr, (CellAddress{1, 1}));
-    EXPECT_TRUE(both->absCol);
-    EXPECT_TRUE(both->absRow);
-
-    const auto rowOnly = CellRef::tryParse("a$1");
-    ASSERT_TRUE(rowOnly.has_value());
-    EXPECT_FALSE(rowOnly->absCol);
-    EXPECT_TRUE(rowOnly->absRow);
-
-    const auto colOnly = CellRef::tryParse("$A1");
-    ASSERT_TRUE(colOnly.has_value());
-    EXPECT_TRUE(colOnly->absCol);
-    EXPECT_FALSE(colOnly->absRow);
+    const CellAddress a1{.row = 0, .col = 0};
+    EXPECT_EQ(CellRef::try_parse("A1"), (CellRef{.addr = a1, .abs_row = false, .abs_col = false}));
+    EXPECT_EQ(CellRef::try_parse("$A$1"), (CellRef{.addr = a1, .abs_row = true, .abs_col = true}));
+    EXPECT_EQ(CellRef::try_parse("a$1"), (CellRef{.addr = a1, .abs_row = true, .abs_col = false}));
+    EXPECT_EQ(CellRef::try_parse("$A1"), (CellRef{.addr = a1, .abs_row = false, .abs_col = true}));
+    EXPECT_EQ(CellRef::try_parse("$B$2").value().addr, (CellAddress{1, 1}));
 }
 
 TEST(CellRef, KeepsReferencesOutsideSheet) {
     for (const std::string text : {"A99999999", "AAA1", "A0"}) {
-        const auto ref = CellRef::tryParse(text);
+        const auto ref = CellRef::try_parse(text);
         ASSERT_TRUE(ref.has_value()) << text;
-        EXPECT_FALSE(ref->addr.isValid()) << text;
+        EXPECT_FALSE(ref.value().addr.is_valid()) << text;
     }
 }
 
 TEST(CellRef, RejectsTextThatIsNotReference) {
     for (const std::string text : {"", "$", "A", "1", "1A", "A1$", "$$A1", "A1:B2", "SUM"}) {
-        EXPECT_FALSE(CellRef::tryParse(text).has_value()) << text;
+        EXPECT_FALSE(CellRef::try_parse(text).has_value()) << text;
     }
 }
 
 TEST(CellRef, ToStringKeepsDollars) {
     for (const std::string text : {"B7", "$A$1", "A$1", "$A1"}) {
-        EXPECT_EQ(CellRef::tryParse(text)->toString(), text);
+        EXPECT_EQ(CellRef::try_parse(text).value().to_string(), text);
     }
 }
 
@@ -145,10 +131,10 @@ TEST(Range, SizeCountsCells) {
 TEST(Range, ForEachGoesRowByRow) {
     const Range range(CellAddress::parse("B2"), CellAddress::parse("A1"));
     std::vector<std::string> visited;
-    range.forEach([&](CellAddress address) { visited.push_back(address.toString()); });
+    range.for_each([&](CellAddress address) { visited.push_back(address.to_string()); });
     EXPECT_EQ(visited, (std::vector<std::string>{"A1", "B1", "A2", "B2"}));
 }
 
 TEST(Range, ToString) {
-    EXPECT_EQ(Range(CellAddress::parse("B2"), CellAddress::parse("A1")).toString(), "A1:B2");
+    EXPECT_EQ(Range(CellAddress::parse("B2"), CellAddress::parse("A1")).to_string(), "A1:B2");
 }
