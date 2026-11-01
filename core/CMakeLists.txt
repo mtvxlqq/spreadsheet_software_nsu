@@ -4,6 +4,7 @@ add_library(ss_core STATIC
     src/formula_printer.cpp
     src/lexer.cpp
     src/number_format.cpp
+    src/parser.cpp
     src/ref_collector.cpp
     src/text.cpp
     src/value.cpp

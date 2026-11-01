@@ -14,6 +14,7 @@ FetchContent_MakeAvailable(googletest)
 add_executable(core_tests
     core/test_address.cpp
     core/test_lexer.cpp
+    core/test_parser.cpp
     core/test_printer.cpp
     core/test_ref_collector.cpp
     core/test_value.cpp
