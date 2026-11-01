@@ -1,5 +1,7 @@
 #include "core/value.hpp"
 
+#include <cmath>
+
 #include "core/number_format.hpp"
 #include "core/text.hpp"
 
@@ -135,6 +137,13 @@ std::optional<std::partial_ordering> ErrorValue::compare(const Value& /*other*/)
 
 ValuePtr make_number(double value) {
     return std::make_shared<const NumberValue>(value);
+}
+
+ValuePtr make_number_or_error(double value) {
+    if (!std::isfinite(value)) {
+        return make_error(ErrorCode::Value);
+    }
+    return make_number(value);
 }
 
 ValuePtr make_string(std::string text) {

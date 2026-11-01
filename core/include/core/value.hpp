@@ -130,6 +130,8 @@ private:
 };
 
 ValuePtr make_number(double value);
+// для результатов вычислений: inf и nan превращаются в #VALUE!
+ValuePtr make_number_or_error(double value);
 ValuePtr make_string(std::string text);
 ValuePtr make_error(ErrorCode code);
 // один общий объект на всю программу

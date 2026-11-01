@@ -13,6 +13,8 @@ FetchContent_MakeAvailable(googletest)
 
 add_executable(core_tests
     core/test_address.cpp
+    core/test_evaluator.cpp
+    core/test_functions.cpp
     core/test_lexer.cpp
     core/test_parser.cpp
     core/test_printer.cpp
