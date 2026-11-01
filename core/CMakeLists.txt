@@ -7,6 +7,8 @@ add_library(ss_core STATIC
     src/builtins/number_args.cpp
     src/builtins/register_builtins.cpp
     src/builtins/sum_function.cpp
+    src/cell_input.cpp
+    src/dependency_graph.cpp
     src/evaluator.cpp
     src/expr.cpp
     src/formula_printer.cpp
@@ -14,7 +16,9 @@ add_library(ss_core STATIC
     src/lexer.cpp
     src/number_format.cpp
     src/parser.cpp
+    src/recalculator.cpp
     src/ref_collector.cpp
+    src/sheet.cpp
     src/text.cpp
     src/value.cpp
 )
