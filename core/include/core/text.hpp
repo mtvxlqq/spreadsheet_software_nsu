@@ -10,4 +10,7 @@ namespace ss::core {
 std::string to_upper_ascii(std::string_view text);
 std::string to_lower_ascii(std::string_view text);
 
+// убирает пробелы, табы и переводы строк по краям
+std::string_view trim_spaces(std::string_view text);
+
 }  // namespace ss::core

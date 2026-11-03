@@ -14,10 +14,13 @@ FetchContent_MakeAvailable(googletest)
 add_executable(core_tests
     core/test_address.cpp
     core/test_cell_input.cpp
+    core/test_csv.cpp
     core/test_evaluator.cpp
+    core/test_format_registry.cpp
     core/test_functions.cpp
     core/test_graph.cpp
     core/test_lexer.cpp
+    core/test_native_format.cpp
     core/test_parser.cpp
     core/test_printer.cpp
     core/test_recalculator.cpp
@@ -27,6 +30,8 @@ add_executable(core_tests
     core/test_value.cpp
 )
 target_include_directories(core_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+# файлы для тестов лежат в testdata/ в корне репозитория
+target_compile_definitions(core_tests PRIVATE SS_TESTDATA_DIR="${PROJECT_SOURCE_DIR}/testdata")
 target_link_libraries(core_tests PRIVATE ss_core GTest::gtest_main)
 ss_set_warnings(core_tests)
 gtest_discover_tests(core_tests)

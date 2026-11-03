@@ -1,0 +1,5 @@
+SST 1
+A1	42
+B1	hello world
+A2	=A1*2
+C3	'123
