@@ -16,6 +16,7 @@ add_executable(core_tests
     core/test_cell_input.cpp
     core/test_csv.cpp
     core/test_evaluator.cpp
+    core/test_extensions.cpp
     core/test_format_registry.cpp
     core/test_functions.cpp
     core/test_graph.cpp
@@ -39,6 +40,7 @@ gtest_discover_tests(core_tests)
 add_executable(app_tests
     app/test_actions.cpp
     app/test_edit_command.cpp
+    app/test_extensions.cpp
     app/test_keymap.cpp
     app/test_line_editor.cpp
     app/test_session_keys.cpp
