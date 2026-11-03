@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cstddef>
+#include <filesystem>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -39,6 +41,10 @@ public:
     virtual std::vector<std::string> help_lines() const = 0;
     // есть несохранённые изменения
     virtual bool dirty() const = 0;
+    // откуда открыт или куда последний раз сохранён документ
+    virtual const std::optional<std::filesystem::path>& current_path() const = 0;
+    // TUI проверяет после каждой клавиши и выходит из цикла
+    virtual bool quit_requested() const = 0;
 
 protected:
     SessionView() = default;

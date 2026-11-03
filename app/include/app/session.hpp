@@ -1,7 +1,9 @@
 #pragma once
 
 #include <cstddef>
+#include <filesystem>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -16,8 +18,9 @@
 #include "core/spreadsheet.hpp"
 
 namespace ss::core {
+class FormatRegistry;
 class FunctionProvider;
-}
+}  // namespace ss::core
 
 namespace ss::app {
 
@@ -30,9 +33,9 @@ class SessionObserver;
 // меняют сеанс через методы ниже.
 class Session final : public SessionView {
 public:
-    // functions и actions должны жить дольше сеанса
-    Session(const ss::core::FunctionProvider& functions, const ActionRegistry& actions,
-            Keymap keymap);
+    // functions, formats и actions должны жить дольше сеанса
+    Session(const ss::core::FunctionProvider& functions, const ss::core::FormatRegistry& formats,
+            const ActionRegistry& actions, Keymap keymap);
     ~Session() override;
 
     // Вход от TUI. Ошибки (ss::core::Error) не вылетают наружу,
@@ -52,6 +55,15 @@ public:
     void apply_edit(std::unique_ptr<EditCommand> command);
     void set_status(std::string text, Status::Kind kind = Status::Kind::Info);
 
+    // открыли файл: он становится текущим, несохранённых изменений нет
+    void replace_document(std::unique_ptr<ss::core::Spreadsheet> document,
+                          std::filesystem::path path);
+    // импорт: файла у документа нет, и его ещё надо сохранить
+    void import_document(std::unique_ptr<ss::core::Spreadsheet> document);
+    // документ записан в path
+    void mark_saved(std::filesystem::path path);
+    void request_quit();
+
     LineEditor& edit_line() {
         return edit_line_;
     }
@@ -62,6 +74,14 @@ public:
 
     const ActionRegistry& actions() const {
         return actions_;
+    }
+
+    const ss::core::FunctionProvider& functions() const {
+        return functions_;
+    }
+
+    const ss::core::FormatRegistry& formats() const {
+        return formats_;
     }
 
     // подписчик обязан отписаться до своего уничтожения
@@ -82,10 +102,15 @@ public:
     std::string formula_bar_text() const override;
     std::vector<std::string> help_lines() const override;
     bool dirty() const override;
+    const std::optional<std::filesystem::path>& current_path() const override;
+    bool quit_requested() const override;
 
 private:
     void notify();
+    void set_document(std::unique_ptr<ss::core::Spreadsheet> document);
 
+    const ss::core::FunctionProvider& functions_;
+    const ss::core::FormatRegistry& formats_;
     const ActionRegistry& actions_;
     Keymap keymap_;
     std::unique_ptr<ss::core::Spreadsheet> document_;
@@ -98,6 +123,8 @@ private:
     std::unique_ptr<Mode> pending_mode_;
     bool handling_key_ = false;
     bool dirty_ = false;
+    std::optional<std::filesystem::path> current_path_;
+    bool quit_requested_ = false;
     std::vector<SessionObserver*> observers_;
 };
 

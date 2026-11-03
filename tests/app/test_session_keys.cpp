@@ -17,6 +17,8 @@
 #include "core/address.hpp"
 #include "core/builtins.hpp"
 #include "core/function_registry.hpp"
+#include "core/io/format_registry.hpp"
+#include "core/io/register_formats.hpp"
 #include "core/value.hpp"
 #include "support/printers.hpp"
 
@@ -80,6 +82,7 @@ class SessionKeysTest : public ::testing::Test {
 protected:
     SessionKeysTest() {
         ss::core::register_builtins(functions);
+        ss::core::register_formats(formats);
         ss::app::register_actions(actions);
         session.resize(20, 8);
     }
@@ -102,8 +105,9 @@ protected:
     }
 
     ss::core::FunctionRegistry functions;
+    ss::core::FormatRegistry formats;
     ss::app::ActionRegistry actions;
-    Session session{functions, actions, ss::app::Keymap::defaults()};
+    Session session{functions, formats, actions, ss::app::Keymap::defaults()};
 };
 
 }  // namespace

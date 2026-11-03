@@ -37,6 +37,7 @@ ss_set_warnings(core_tests)
 gtest_discover_tests(core_tests)
 
 add_executable(app_tests
+    app/test_actions.cpp
     app/test_edit_command.cpp
     app/test_keymap.cpp
     app/test_line_editor.cpp

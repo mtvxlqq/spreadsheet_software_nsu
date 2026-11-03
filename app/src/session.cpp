@@ -11,9 +11,12 @@
 
 namespace ss::app {
 
-Session::Session(const ss::core::FunctionProvider& functions, const ActionRegistry& actions,
+Session::Session(const ss::core::FunctionProvider& functions,
+                 const ss::core::FormatRegistry& formats, const ActionRegistry& actions,
                  Keymap keymap)
-    : actions_(actions),
+    : functions_(functions),
+      formats_(formats),
+      actions_(actions),
       keymap_(std::move(keymap)),
       document_(std::make_unique<ss::core::Spreadsheet>(functions)),
       mode_(std::make_unique<NormalMode>()) {}
@@ -84,6 +87,33 @@ void Session::set_status(std::string text, Status::Kind kind) {
     status_ = {.text = std::move(text), .kind = kind};
 }
 
+void Session::replace_document(std::unique_ptr<ss::core::Spreadsheet> document,
+                               std::filesystem::path path) {
+    set_document(std::move(document));
+    current_path_ = std::move(path);
+    dirty_ = false;
+}
+
+void Session::import_document(std::unique_ptr<ss::core::Spreadsheet> document) {
+    set_document(std::move(document));
+    current_path_.reset();
+    dirty_ = true;
+}
+
+void Session::mark_saved(std::filesystem::path path) {
+    current_path_ = std::move(path);
+    dirty_ = false;
+}
+
+void Session::request_quit() {
+    quit_requested_ = true;
+}
+
+void Session::set_document(std::unique_ptr<ss::core::Spreadsheet> document) {
+    document_ = std::move(document);
+    set_cursor({.row = 0, .col = 0});
+}
+
 void Session::subscribe(SessionObserver* observer) {
     if (std::ranges::find(observers_, observer) == observers_.end()) {
         observers_.push_back(observer);
@@ -145,6 +175,14 @@ std::vector<std::string> Session::help_lines() const {
 
 bool Session::dirty() const {
     return dirty_;
+}
+
+const std::optional<std::filesystem::path>& Session::current_path() const {
+    return current_path_;
+}
+
+bool Session::quit_requested() const {
+    return quit_requested_;
 }
 
 }  // namespace ss::app

@@ -4,8 +4,10 @@
 #include <string>
 
 #include "actions/edit_actions.hpp"
+#include "actions/file_actions.hpp"
 #include "actions/mode_actions.hpp"
 #include "actions/navigation_actions.hpp"
+#include "actions/quit_actions.hpp"
 #include "app/action_registry.hpp"
 
 namespace ss::app {
@@ -37,7 +39,19 @@ void register_actions(ActionRegistry& registry) {
     registry.add("clear-cell", [] { return std::make_unique<ClearCellAction>(); });
     registry.add("command-mode", [] { return std::make_unique<CommandModeAction>(); });
     registry.add("show-help", [] { return std::make_unique<ShowHelpAction>(); });
-    // в фазе 11 тут появятся save, open, import-csv, quit и алиасы
+    registry.add("save", [] { return std::make_unique<SaveAction>(); });
+    registry.add("open", [] { return std::make_unique<OpenAction>(); });
+    registry.add("import-csv", [] { return std::make_unique<ImportCsvAction>(); });
+    registry.add("quit", [] { return std::make_unique<QuitAction>(); });
+    registry.add("force-quit", [] { return std::make_unique<ForceQuitAction>(); });
+
+    // короткие имена для командной строки, как в vim
+    registry.add_alias("w", "save");
+    registry.add_alias("e", "open");
+    registry.add_alias("q", "quit");
+    registry.add_alias("q!", "force-quit");
+    registry.add_alias("import", "import-csv");
+    registry.add_alias("help", "show-help");
 }
 
 }  // namespace ss::app

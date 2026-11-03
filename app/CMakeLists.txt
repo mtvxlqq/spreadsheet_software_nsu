@@ -1,9 +1,12 @@
 add_library(ss_app STATIC
     src/action_registry.cpp
     src/actions/edit_actions.cpp
+    src/actions/file_actions.cpp
     src/actions/mode_actions.cpp
     src/actions/navigation_actions.cpp
+    src/actions/quit_actions.cpp
     src/cell_presenter.cpp
+    src/document_io.cpp
     src/keymap.cpp
     src/line_editor.cpp
     src/modes/command_mode.cpp
