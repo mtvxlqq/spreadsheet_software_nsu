@@ -2,12 +2,13 @@
 
 ## Диаграмма классов
 
-Я разбил диаграмму на несколько частей, потому что одна общая получилась слишком большой.
+Я разбил диаграмму на несколько частей, потому что одна общая получилась слишком большой. Имена на диаграммах такие же, как в коде.
+
 ### Адреса и значения
 
 `CellAddress` это просто номер строки и столбца. `CellRef` это ссылка из формулы, в ней ещё есть флаги для `$`. На первом этапе они не нужны, но пригодятся при копировании.
 
-Значения сделаны через наследование от `Value`. Так проще добавить новый тип, например дату. Ошибки вроде `#DIV/0!` тоже считаются значением, чтобы ошибка в одной ячейке не ломала остальные.
+Значения сделаны через наследование от `Value`. Так проще добавить новый тип, например дату. Ошибки вроде `#DIV/0!` тоже считаются значением, чтобы ошибка в одной ячейке не ломала остальные. Значение после создания не меняется, поэтому его можно делить через `shared_ptr` между ячейками и потоками.
 
 ```mermaid
 classDiagram
@@ -15,50 +16,55 @@ classDiagram
         +int row
         +int col
         +parse(string_view) CellAddress$
-        +toString() string
+        +is_valid() bool
+        +to_string() string
     }
     class CellRef {
         +CellAddress addr
-        +bool absRow
-        +bool absCol
-        +shifted(int dr, int dc) CellRef
+        +bool abs_row
+        +bool abs_col
+        +try_parse(string_view) optional~CellRef~$
     }
     class Range {
-        +CellAddress from
-        +CellAddress to
+        -CellAddress from_
+        -CellAddress to_
         +contains(CellAddress) bool
-        +forEach(fn) void
+        +size() size_t
+        +for_each(fn) void
     }
     CellRef --> CellAddress
     Range --> CellAddress
 
     class Value {
         <<abstract>>
-        +asNumber() optional~double~
-        +toText() string
-        +isError() bool
+        +as_number() optional~double~
+        +to_text() string
         +display(NumberFormat) string
+        +is_error() bool
+        +is_empty() bool
+        +compare(Value) optional~partial_ordering~
+        +compare_with_number(double)
+        +compare_with_string(string_view)
+        +compare_with_empty()
     }
     class EmptyValue
     class NumberValue {
-        -double v
+        -double value_
     }
     class StringValue {
-        -string s
+        -string text_
     }
     class ErrorValue {
-        -ErrorCode code
+        -ErrorCode code_
     }
-    class DateValue {
-        -int days
-    }
+    class DateValue
     class ErrorCode {
         <<enumeration>>
-        DIV0
-        REF
-        NAME
-        CYCLE
-        VALUE
+        Div0
+        Ref
+        Name
+        Cycle
+        Value
     }
     Value <|-- EmptyValue
     Value <|-- NumberValue
@@ -70,11 +76,20 @@ classDiagram
 
 Дату буду хранить как количество дней, тогда разность дат считается обычным вычитанием.
 
+#### Как сравниваются значения
+
+В формуле `=A1<B1` надо сравнить два значения, а их типы известны только во время работы. Писать `dynamic_cast` или `switch` по типу я не хотел, поэтому сделал двойную диспетчеризацию:
+
+1. `lhs.compare(rhs)` попадает в класс левого значения, например в `NumberValue`. Теперь известно, что слева число.
+2. Он вызывает `rhs.compare_with_number(своё число)`. Этот вызов попадает в класс правого значения, и теперь известны оба типа.
+
+По умолчанию `compare_with_*` возвращает `nullopt` («сравнивать нельзя»), а наследник переопределяет только то, что умеет. Число со строкой не сравнивается, это `#VALUE!`. Пустая ячейка рядом с числом ведёт себя как 0, рядом со строкой как `""`. Строки сравниваются без учёта регистра латиницы.
+
 ### Формулы
 
 Формула после разбора хранится как дерево. Например, `=A1*2+SUM(B1:B3)`: сверху плюс, слева от него умножение, справа функция.
 
-С этим деревом надо делать несколько разных вещей: считать значение, печатать формулу обратно в текст, искать ссылки на другие ячейки. Каждое такое действие я вынес в отдельный класс-посетитель.
+С этим деревом надо делать несколько разных вещей: считать значение, печатать формулу обратно в текст, искать ссылки на другие ячейки. Каждое такое действие я вынес в отдельный класс-посетитель. Посетители получают узлы как `const`, дерево они не меняют.
 
 ```mermaid
 classDiagram
@@ -86,25 +101,25 @@ classDiagram
     class NumberLit
     class StringLit
     class RefExpr {
-        +CellRef ref
+        -CellRef ref_
     }
     class RangeExpr {
-        +CellRef from
-        +CellRef to
+        -CellRef from_
+        -CellRef to_
     }
     class UnaryExpr {
-        +UnaryOp op
-        +unique_ptr~Expr~ operand
+        -UnaryOp op_
+        -unique_ptr~Expr~ operand_
     }
     class BinaryExpr {
-        +BinaryOp op
-        +unique_ptr~Expr~ left
-        +unique_ptr~Expr~ right
+        -BinaryOp op_
+        -unique_ptr~Expr~ left_
+        -unique_ptr~Expr~ right_
     }
     class FunctionCallExpr {
-        +string name
-        +vector~unique_ptr~Expr~~ args
-        +unique_ptr~Function~ fn
+        -string name_
+        -vector~unique_ptr~Expr~~ args_
+        -shared_ptr~const Function~ function_
     }
     Expr <|-- NumberLit
     Expr <|-- StringLit
@@ -116,31 +131,29 @@ classDiagram
     UnaryExpr *-- Expr
     BinaryExpr *-- Expr
     FunctionCallExpr *-- Expr
-    FunctionCallExpr *-- Function
+    FunctionCallExpr o-- Function
 
     class ExprVisitor {
         <<interface>>
-        +visit(NumberLit)
-        +visit(StringLit)
-        +visit(RefExpr)
-        +visit(RangeExpr)
-        +visit(UnaryExpr)
-        +visit(BinaryExpr)
-        +visit(FunctionCallExpr)
+        +visit(const NumberLit&)
+        +visit(const StringLit&)
+        +visit(const RefExpr&)
+        +visit(const RangeExpr&)
+        +visit(const UnaryExpr&)
+        +visit(const BinaryExpr&)
+        +visit(const FunctionCallExpr&)
     }
     class Evaluator {
-        -EvalContext ctx
-        +result() shared_ptr~const Value~
+        +evaluate(Expr, EvalContext) ValuePtr$
+        +evaluate_flat(Expr, EvalContext) ArgValues$
     }
     class FormulaPrinter {
-        +result() string
+        +print(Expr) string$
     }
     class RefCollector {
-        +result() set~CellAddress~
+        +collect(Expr) set~CellAddress~$
     }
-    class RefShifter {
-        -ShiftRule rule
-    }
+    class RefShifter
     ExprVisitor <|.. Evaluator
     ExprVisitor <|.. FormulaPrinter
     ExprVisitor <|.. RefCollector
@@ -148,11 +161,13 @@ classDiagram
     Expr ..> ExprVisitor
 ```
 
+Функцию узел хранит через `shared_ptr<const Function>`: у функций нет состояния, один объект делят все формулы. Если функции с таким именем нет, `function_` пустой, и при вычислении получается `#NAME?`.
+
 ### Парсер и функции
 
 Парсер пишу сам. `Lexer` делит строку на токены (числа, ссылки, знаки), а `Parser` строит из них дерево методом рекурсивного спуска. Каждый метод отвечает за свой приоритет операций: сравнения, потом `+ -`, потом `* /`, потом унарный минус.
 
-Парсер не знает, какие функции существуют. Когда он видит имя, например `SUM`, он спрашивает у `FunctionRegistry`. Если функции с таким именем нет, получится `#NAME?`.
+Парсер не знает, какие функции существуют. Когда он видит имя, например `SUM`, он спрашивает у `FunctionProvider`. Это интерфейс, поэтому в тестах парсеру можно дать подделку вместо настоящего реестра.
 
 Аргументы функция получает ещё не посчитанными. Это нужно для `IF`: в `=IF(A1=0, 0, 1/A1)` деление не должно считаться, если A1 равно 0.
 
@@ -164,54 +179,59 @@ classDiagram
         +size_t pos
     }
     class Lexer {
-        +Lexer(string_view)
         +next() Token
     }
     class Parser {
-        -Lexer lexer
-        -const FunctionRegistry& functions
-        +parse(string_view) unique_ptr~Expr~
-        -comparison() unique_ptr~Expr~
-        -additive() unique_ptr~Expr~
-        -multiplicative() unique_ptr~Expr~
-        -unary() unique_ptr~Expr~
-        -primary() unique_ptr~Expr~
+        +parse(string_view, FunctionProvider) unique_ptr~Expr~$
+        -parse_comparison() unique_ptr~Expr~
+        -parse_additive() unique_ptr~Expr~
+        -parse_multiplicative() unique_ptr~Expr~
+        -parse_unary() unique_ptr~Expr~
+        -parse_primary() unique_ptr~Expr~
     }
     Parser *-- Lexer
     Lexer ..> Token
-    Parser --> FunctionRegistry
+    Parser --> FunctionProvider
 
     class Function {
         <<abstract>>
         +name() string_view
-        +call(span~const Expr*~ args, EvalContext ctx) shared_ptr~const Value~
+        +call(span~const Expr*~ args, EvalContext) ValuePtr
     }
-    class SumFn
-    class MinFn
-    class MaxFn
-    class AverageFn
-    class IfFn
-    Function <|-- SumFn
-    Function <|-- MinFn
-    Function <|-- MaxFn
-    Function <|-- AverageFn
-    Function <|-- IfFn
+    class SumFunction
+    class MinFunction
+    class MaxFunction
+    class AverageFunction
+    class IfFunction
+    Function <|-- SumFunction
+    Function <|-- MinFunction
+    Function <|-- MaxFunction
+    Function <|-- AverageFunction
+    Function <|-- IfFunction
 
-    class FunctionRegistry {
-        -map~string, Factory~ factories
-        +add(string name, Factory f) void
-        +create(string_view name) unique_ptr~Function~
-        +withBuiltins() FunctionRegistry$
+    class FunctionProvider {
+        <<interface>>
+        +create(string_view name) shared_ptr~const Function~
     }
+    class FunctionRegistry {
+        -map~string, Factory~ factories_
+        +add(string name, Factory) void
+    }
+    FunctionProvider <|.. FunctionRegistry
     FunctionRegistry ..> Function : создаёт
 
     class EvalContext {
         <<interface>>
-        +valueAt(CellAddress) shared_ptr~const Value~
-        +evaluate(const Expr&) shared_ptr~const Value~
+        +value_at(CellAddress) ValuePtr
+        +evaluate(Expr) ValuePtr
+        +evaluate_flat(Expr) ArgValues
     }
     Function ..> EvalContext
 ```
+
+Встроенные функции регистрирует свободная функция `register_builtins(FunctionRegistry&)`, сам реестр про них не знает.
+
+`evaluate_flat` нужен для `SUM(A1:A3, 5)`: функция просит развернуть аргумент, и диапазон превращается в список значений, а не в `#VALUE!`. Так функции не надо проверять, какой узел ей передали.
 
 ### Лист, граф зависимостей и файлы
 
@@ -226,65 +246,100 @@ classDiagram
     class Cell {
         +string raw
         +unique_ptr~Expr~ formula
-        +shared_ptr~const Value~ value
-        +CellStyle style
+        +ValuePtr value
+    }
+    class CellInputParser {
+        +parse(string_view) optional~Cell~
     }
     class Sheet {
-        -unordered_map~CellAddress, Cell~ cells
+        -unordered_map~CellAddress, Cell~ cells_
         +get(CellAddress) const Cell*
         +set(CellAddress, Cell) void
         +remove(CellAddress) void
-        +usedRange() Range
+        +used_range() optional~Range~
+        +for_each(fn) void
     }
     Sheet *-- Cell
 
     class DependencyGraph {
-        -map~CellAddress, set~CellAddress~~ deps
-        -map~CellAddress, set~CellAddress~~ dependents
-        +setDependencies(CellAddress, set~CellAddress~) void
-        +affectedInOrder(CellAddress) vector~CellAddress~
-        +cycleThrough(CellAddress) set~CellAddress~
+        -map~CellAddress, set~ dependencies_
+        -map~CellAddress, set~ dependents_
+        +set_dependencies(CellAddress, set) void
+        +remove_cell(CellAddress) void
+        +plan(vector~CellAddress~ changed) RecalcPlan
     }
+    class RecalcPlan {
+        +vector~CellAddress~ order
+        +set~CellAddress~ cyclic
+    }
+    class Recalculator {
+        +run(RecalcPlan, Sheet, EvalContext) vector~CellAddress~$
+    }
+    DependencyGraph ..> RecalcPlan
 
-    class Spreadsheet {
-        -Sheet sheet
-        -DependencyGraph graph
-        -const FunctionRegistry& functions
-        -vector~CellObserver*~ observers
-        +setInput(CellAddress, string_view) void
+    class CellSink {
+        <<interface>>
+        +set_input(CellAddress, string_view) void
         +clear(CellAddress) void
-        +value(CellAddress) shared_ptr~const Value~
+    }
+    class CellSource {
+        <<interface>>
+        +used_range() optional~Range~
         +raw(CellAddress) string
+        +value(CellAddress) ValuePtr
+        +for_each_cell(fn) void
+    }
+    class Spreadsheet {
+        -CellInputParser input_parser_
+        -Sheet sheet_
+        -DependencyGraph graph_
+        -vector~CellObserver*~ observers_
+        +formula_text(CellAddress) string
+        +recalculate_all() void
         +subscribe(CellObserver*) void
         +unsubscribe(CellObserver*) void
     }
+    CellSink <|.. Spreadsheet
+    CellSource <|.. Spreadsheet
+    Spreadsheet *-- CellInputParser
     Spreadsheet *-- Sheet
     Spreadsheet *-- DependencyGraph
-    Spreadsheet --> FunctionRegistry
-    Spreadsheet ..|> EvalContext
+    Spreadsheet ..> Recalculator
+    Spreadsheet ..> SheetEvalContext
     Spreadsheet o-- CellObserver
+    class SheetEvalContext
+    EvalContext <|.. SheetEvalContext
 
     class CellObserver {
         <<interface>>
-        +onCellsChanged(span~const CellAddress~) void
+        +on_cells_changed(span~const CellAddress~) void
     }
 
-    class FileFormat {
+    class FileReader {
         <<interface>>
         +name() string_view
-        +extensions() span~const string~
-        +load(istream, Spreadsheet) void
-        +save(ostream, const Spreadsheet) void
+        +extensions() vector~string~
+        +load(istream, CellSink) void
+    }
+    class FileWriter {
+        <<interface>>
+        +name() string_view
+        +extensions() vector~string~
+        +save(ostream, CellSource) void
     }
     class NativeFormat
-    class CsvFormat
-    FileFormat <|.. NativeFormat
-    FileFormat <|.. CsvFormat
+    class CsvReader
+    FileReader <|.. NativeFormat
+    FileWriter <|.. NativeFormat
+    FileReader <|.. CsvReader
     class FormatRegistry {
-        +add(unique_ptr~FileFormat~) void
-        +byExtension(string_view) const FileFormat*
+        +add_reader(shared_ptr~const FileReader~) void
+        +add_writer(shared_ptr~const FileWriter~) void
+        +reader_for(string_view path) FileReader
+        +writer_for(string_view path) FileWriter
     }
-    FormatRegistry *-- FileFormat
+    FormatRegistry o-- FileReader
+    FormatRegistry o-- FileWriter
 
     class NumberFormat {
         <<interface>>
@@ -298,39 +353,89 @@ classDiagram
     NumberFormat <|.. PercentFormat : этап 2
 ```
 
-### Приложение и интерфейс
+`EvalContext` реализует не сам `Spreadsheet`, а внутренний `SheetEvalContext`. Иначе `evaluate` был бы публичным методом таблицы, а снаружи он никому не нужен.
 
-`Session` хранит всё, что относится к текущей работе: документ, курсор, режим, сообщение в строке состояния. Нажатую клавишу она передаёт текущему режиму, потому что в разных режимах одна клавиша делает разное.
+Формату файла весь `Spreadsheet` не нужен. Читателю достаточно куда-то класть ячейки (`CellSink`), писателю — откуда-то их брать (`CellSource`).
+
+#### Пересчёт
+
+1. `plan(changed)` собирает все ячейки, которые зависят от изменённых (через сколько угодно шагов), вместе с самими изменёнными.
+2. Для этих ячеек считается порядок алгоритмом Кана: ячейка идёт после всех, от кого она зависит.
+3. То, что не попало в порядок, лежит в цикле или зависит от цикла. Это `cyclic`, там будет `#CYCLE!`.
+4. `Recalculator` считает ячейки строго по порядку. К моменту вычисления ячейки все её зависимости уже свежие, поэтому каждая считается ровно один раз, и рекурсии между ячейками нет.
+
+Диапазон `SUM(A1:A100)` записывается в граф как зависимость от каждой ячейки диапазона, даже пустой. Иначе ввод в пустую A50 не пересчитал бы сумму.
+
+#### Строгая гарантия `set_input`
+
+Если ввод неправильный (например, `=1+`), таблица должна остаться ровно такой, какой была. Поэтому `set_input` идёт так:
+
+1. `CellInputParser` разбирает ввод. Если бросит `ParseError`, ещё ничего не изменено.
+2. `RefCollector` собирает ссылки в новое множество. Тоже ничего не изменено.
+3. `graph_.set_dependencies(...)` сначала строит новые множества и только потом меняет их местами через `swap`, который не бросает.
+4. `sheet_.set(...)`. Если бросит (`bad_alloc` при вставке новой ячейки), граф откатывается.
+5. Пересчёт и уведомление. Вычисление доменных исключений не бросает: ошибки в формулах это значения.
+
+Файл тоже грузится не в текущую таблицу, а в новую `Spreadsheet`. Текущий документ заменяется, только если весь файл прочитался.
+
+### Приложение
+
+`Session` хранит всё, что относится к текущей работе: документ, курсор, режим, строку правки, сообщение в строке состояния. Нажатую клавишу она передаёт текущему режиму, потому что в разных режимах одна клавиша делает разное.
 
 Какая клавиша что делает, написано в `Keymap`, он читается из конфига. Там клавише соответствует имя действия, а `ActionRegistry` создаёт по этому имени объект `Action`.
 
 ```mermaid
 classDiagram
+    class SessionView {
+        <<interface>>
+        +document() Spreadsheet
+        +cursor() CellAddress
+        +viewport() Viewport
+        +mode_name() string_view
+        +status() Status
+        +edit_buffer() string
+        +formula_bar_text() string
+        +help_lines() vector~string~
+        +dirty() bool
+        +current_path() optional~path~
+        +quit_requested() bool
+        +busy() bool
+    }
     class Session {
-        -Spreadsheet doc
-        -CellAddress cursor
-        -Viewport viewport
-        -string editBuffer
-        -string status
-        -unique_ptr~Mode~ mode
-        -Keymap keymap
-        -UndoStack undo
-        -TaskRunner tasks
-        +handleKey(string_view key) void
-        +setMode(unique_ptr~Mode~) void
+        -unique_ptr~Spreadsheet~ document_
+        -CellAddress cursor_
+        -Viewport viewport_
+        -LineEditor edit_line_
+        -Status status_
+        -unique_ptr~Mode~ mode_
+        -unique_ptr~Mode~ pending_mode_
+        -Keymap keymap_
+        -shared_ptr~bool~ alive_
+        -TaskRunner tasks_
+        +handle_key(string_view key) void
+        +resize(int rows, int cols) void
+        +set_mode(unique_ptr~Mode~) void
+        +apply_edit(unique_ptr~EditCommand~) void
+        +replace_document(unique_ptr~Spreadsheet~, path) void
+        +run_in_background(BackgroundWork) void
         +subscribe(SessionObserver*) void
     }
+    SessionView <|.. Session
     Session *-- Spreadsheet
     Session *-- Mode
     Session *-- Keymap
-    Session *-- UndoStack
+    Session *-- Viewport
+    Session *-- LineEditor
     Session *-- TaskRunner
-    Session ..|> CellObserver
+    Session --> ActionRegistry
+    Session --> FormatRegistry
+    Session o-- SessionObserver
 
     class Mode {
         <<abstract>>
         +name() string_view
-        +handleKey(Session, string_view key) void
+        +handle_key(Session, string_view key) void
+        +edits_cell() bool
     }
     class NormalMode
     class EditMode
@@ -344,91 +449,144 @@ classDiagram
     class Action {
         <<abstract>>
         +name() string_view
-        +execute(Session) void
+        +description() string_view
+        +execute(Session, span~const string~ args) void
     }
-    class MoveCursorAction
+    class MoveAction
+    class PageAction
+    class GoHomeAction
+    class GoTopAction
     class StartEditAction
+    class ClearCellAction
+    class CommandModeAction
+    class ShowHelpAction
     class SaveAction
     class OpenAction
     class ImportCsvAction
-    class ShowHelpAction
     class QuitAction
-    Action <|-- MoveCursorAction
+    class ForceQuitAction
+    Action <|-- MoveAction
+    Action <|-- PageAction
+    Action <|-- GoHomeAction
+    Action <|-- GoTopAction
     Action <|-- StartEditAction
+    Action <|-- ClearCellAction
+    Action <|-- CommandModeAction
+    Action <|-- ShowHelpAction
     Action <|-- SaveAction
     Action <|-- OpenAction
     Action <|-- ImportCsvAction
-    Action <|-- ShowHelpAction
     Action <|-- QuitAction
+    Action <|-- ForceQuitAction
 
     class ActionRegistry {
-        +add(string name, Factory f) void
+        +add(string name, Factory) void
+        +add_alias(string alias, string_view name) void
         +create(string_view name) unique_ptr~Action~
+        +names() vector~string~
     }
     class Keymap {
-        -map~string, string~ keyToAction
-        +actionFor(string_view key) optional~string~
-        +load(path) Keymap$
+        -map~string, string~ actions_
+        +action_for(string_view key) optional~string~
+        +keys_for(string_view action) vector~string~
+        +load(path, known_actions) KeymapLoadResult$
         +defaults() Keymap$
     }
-    NormalMode --> Keymap
-    NormalMode --> ActionRegistry
+    NormalMode ..> Keymap
+    NormalMode ..> ActionRegistry
+    CommandMode ..> ActionRegistry
 
     class EditCommand {
         <<abstract>>
         +apply(Spreadsheet) void
         +revert(Spreadsheet) void
     }
-    class SetCellCommand
-    EditCommand <|-- SetCellCommand
-    class UndoStack {
-        -vector~unique_ptr~EditCommand~~ done
-        -vector~unique_ptr~EditCommand~~ undone
-        +push(unique_ptr~EditCommand~) void
-        +undo(Spreadsheet) void
-        +redo(Spreadsheet) void
+    class SetCellCommand {
+        -string raw_
+        -string old_raw_
     }
-    UndoStack *-- EditCommand
+    EditCommand <|-- SetCellCommand
+    class UndoStack
+    UndoStack *-- EditCommand : этап 2
+
+    class TaskRunner {
+        -list~Task~ tasks_
+        +submit(Work) void
+    }
+    class MainThreadDispatcher {
+        <<interface>>
+        +post(function) void
+    }
+    TaskRunner --> MainThreadDispatcher
 
     class SessionObserver {
         <<interface>>
-        +onSessionChanged() void
+        +on_session_changed() void
     }
-    class TuiApp {
-        -ScreenInteractive screen
-        -Session& session
-        +run() int
+    class CellPresenter {
+        +text(Spreadsheet, CellAddress, NumberFormat) string$
+        +align(Spreadsheet, CellAddress) Align$
     }
-    TuiApp ..|> SessionObserver
-    TuiApp --> Session
-    TuiApp *-- GridView
-    TuiApp *-- FormulaBarView
-    TuiApp *-- StatusBarView
-    TuiApp *-- HelpView
 ```
 
-`UndoStack` и `EditCommand` понадобятся только на втором этапе.
+Все изменения документа идут через `apply_edit` и `EditCommand`, даже очистка ячейки. На втором этапе для отмены хватит положить команду в `UndoStack` внутри `apply_edit`, остальной код менять не придётся.
+
+`Session` не подписана на `Spreadsheet` как `CellObserver`: все изменения документа и так проходят через неё. Интерфейс подписывается на `Session` через `SessionObserver` и после каждой клавиши получает сигнал «перерисуйся».
+
+#### Отложенная смена режима
+
+Режим меняется изнутри самого режима. Например, `HelpMode::handle_key` на любую клавишу вызывает `session.set_mode(NormalMode)`. Если бы `set_mode` сразу заменил `unique_ptr`, объект `HelpMode` удалился бы, пока выполняется его метод. Любое обращение к его полю после этого было бы чтением освобождённой памяти.
+
+Поэтому внутри `handle_key` новый режим кладётся в `pending_mode_`, а включает его `Session::handle_key` после того, как старый режим вернул управление. Если клавиша закончилась ошибкой, смена режима отменяется. Поэтому при битой формуле остаёмся в правке, а набранный текст не пропадает. Тест `OldModeLivesUntilItReturns` под ASan падает, если смену сделать сразу.
+
+#### Потоки
+
+Файл может быть большим, поэтому `open` и `import-csv` читают его в фоне, а интерфейс в это время работает.
+
+- `TaskRunner` запускает работу в `std::jthread`. Работа возвращает продолжение, а `TaskRunner` отправляет его в главный поток через `MainThreadDispatcher` (в программе это `screen.Post` из FTXUI, в тестах очередь `ManualDispatcher`).
+- В фоне читается файл в новую `Spreadsheet`. Трогаются только реестры функций и форматов, а их никто не меняет. Сам сеанс в фоне не используется.
+- Состояние `Session` меняет только продолжение в главном потоке, поэтому мьютексов вокруг документа нет.
+- Исключение из фона не может вылететь из потока (будет `std::terminate`). Оно переносится в главный поток через `exception_ptr` и показывается в статусе.
+- `TaskRunner` последнее поле `Session`, он уничтожается первым: просит потоки остановиться и дожидается их, пока остальные поля ещё живы.
+- Продолжение могло уже стоять в очереди, когда сеанс удалили. Поэтому оно держит `weak_ptr` на `alive_` сеанса и ничего не делает, если тот истёк. Проверка и удаление сеанса идут в одном главном потоке, так что они не пересекутся.
 
 ## Слои и зависимости между ними
 
 Программа состоит из трёх частей, в CMake это три цели:
 
-- `core` — ядро: ячейки, формулы, пересчёт, сохранение и загрузка. Про терминал ничего не знает. Тесты подключаются только к нему.
-- `app` — логика работы с программой: курсор, режимы, клавиши, отмена.
-- `spreadsheet` — сама программа с интерфейсом на FTXUI. Рисует таблицу и передаёт нажатия клавиш в `app`.
+- `ss_core` — ядро: ячейки, формулы, пересчёт, сохранение и загрузка. Про терминал ничего не знает.
+- `ss_app` — логика работы с программой: курсор, режимы, клавиши, команды, фоновые задачи.
+- `spreadsheet` — сама программа с интерфейсом на FTXUI. Рисует таблицу и передаёт нажатия клавиш в `ss_app`. Будет сделана в следующей части работы.
 
-Зависимости идут только вниз: интерфейс использует `app`, `app` использует `core`. FTXUI подключен только к `spreadsheet`, поэтому `core` с ним не связан.
+Зависимости идут только вниз: интерфейс использует `ss_app`, `ss_app` использует `ss_core`. FTXUI подключен только к `spreadsheet`. Это проверяет `cmake/CheckLayering.cmake`: если `ss_core` или `ss_app` линкуются с FTXUI или подключают его заголовки, CMake остановится с ошибкой.
 
-Клавиши передаются в `app` просто строками, например `"enter"` или `"ctrl+s"`. Тогда `app` тоже не зависит от FTXUI.
+Клавиши передаются в `ss_app` просто строками, например `"enter"` или `"ctrl+s"`. Тогда `ss_app` тоже не зависит от FTXUI. Тесты есть и для ядра (`core_tests`), и для `ss_app` (`app_tests`).
+
+## Ошибки
+
+```
+std::runtime_error
+└── ss::core::Error            корень всех наших ошибок
+    ├── AddressError           "A0", "ZZZ99999999"
+    ├── ParseError             + position(), ошибка в формуле
+    ├── FileFormatError        + line(), битый файл
+    ├── LimitError             выход за пределы листа
+    ├── ss::app::ConfigError   кривая клавиша в конфиге
+    └── ss::app::CommandError  неизвестная команда ":xyz"
+```
+
+`Session::handle_key` ловит `ss::core::Error` и пишет сообщение в строку состояния, программа работает дальше. Ошибки внутри формул (`#DIV/0!` и т.д.) это не исключения, а значения.
 
 ## Точки расширения
 
-- **Новая функция в формулах.** Создать класс-наследник `Function` (например, `CountFn`) и зарегистрировать его в `FunctionRegistry` под именем `"COUNT"`. Парсер менять не надо.
-- **Новый тип значения.** Создать наследника `Value` и реализовать у него `asNumber()`, `toText()` и `display()`.
-- **Новый формат файла.** Создать наследника `FileFormat` с методами `load` и `save` и добавить его в `FormatRegistry`. Формат выбирается по расширению файла.
-- **Новый формат чисел** (этап 2). Создать наследника `NumberFormat`.
-- **Новая операция с отменой** (этап 2). Создать наследника `EditCommand` с методами `apply` и `revert`, а также `Action`, который его запускает. Потом назначить ему клавишу в конфиге.
-- **Новое действие по клавише.** Создать наследника `Action`, зарегистрировать его в `ActionRegistry` и назначить клавишу в конфиге.
+Каждая из них делается новым классом и одной строкой регистрации. В `tests/core/test_extensions.cpp` и `tests/app/test_extensions.cpp` так сделаны функция `COUNT`, чтение `.tsv`, формат чисел `FixedFormat(2)` и действие `go-end`. Ни один существующий класс для них не менялся.
+
+- **Новая функция в формулах.** Наследник `Function` и строка в `register_builtins`. Парсер менять не надо.
+- **Новый тип значения.** Наследник `Value` с `as_number()`, `to_text()`, `display()` и нужными `compare_with_*`.
+- **Новый формат файла.** Наследник `FileReader` и/или `FileWriter` и строка в `register_formats`. Формат выбирается по расширению файла.
+- **Новый формат чисел** (этап 2). Наследник `NumberFormat`.
+- **Новое действие.** Наследник `Action` и строка в `register_actions`. Оно сразу доступно из командной строки и конфига клавиш и само попадает в справку.
+- **Новая операция с отменой** (этап 2). Наследник `EditCommand` и `Action`, который его запускает.
 
 ## Паттерны
 
@@ -448,19 +606,19 @@ classDiagram
 
 Парсеру нужно создать функцию по её имени из формулы. Можно было написать `if (name == "SUM") ... else if ...`, но тогда для каждой новой функции пришлось бы менять парсер. Вместо этого есть реестр, где по имени лежит функция, создающая нужный объект.
 
-`ActionRegistry` устроен так же: он создаёт действие по имени из конфига клавиш.
+`ActionRegistry` и `FormatRegistry` устроены так же: первый создаёт действие по имени из конфига или командной строки, второй выбирает формат по расширению файла.
 
 ### Observer — уведомления об изменениях
 
-Когда ячейки поменялись, интерфейсу нужно перерисоваться, но ядро ничего не должно знать про интерфейс. Поэтому `Spreadsheet` сообщает об изменениях своим подписчикам (это `Session`), а `Session` сообщает `TuiApp`. Так же интерфейс узнаёт, что закончилась фоновая загрузка файла.
+Когда что-то поменялось, интерфейсу нужно перерисоваться, но `ss_app` ничего не должен знать про интерфейс. Поэтому `Session` сообщает подписчикам (`SessionObserver`, это будет TUI). Так же интерфейс узнаёт, что закончилась фоновая загрузка файла. `Spreadsheet` тоже сообщает своим подписчикам (`CellObserver`), какие ячейки изменились, одним вызовом на всю операцию.
 
 Сначала я хотел подписывать ячейки друг на друга, но тогда некоторые ячейки пересчитывались бы по два раза, и циклы было бы трудно находить. Поэтому порядок пересчёта определяет граф зависимостей.
 
-### Command — действия и отмена
+### Command — действия и правки
 
 Клавиши берутся из конфига, поэтому каждое действие сделано отдельным объектом с именем. Со `switch` по клавишам переназначить их из файла не получилось бы.
 
-На втором этапе так же будет работать отмена: каждое изменение (`EditCommand`) умеет и выполниться, и откатиться. Сохранять перед каждым изменением копию всей таблицы заняло бы слишком много памяти.
+Правки документа (`EditCommand`) — тоже команды: каждая умеет и выполниться, и откатиться. На втором этапе на этом будет работать отмена. Сохранять перед каждым изменением копию всей таблицы заняло бы слишком много памяти.
 
 ### State — режимы
 
@@ -468,15 +626,37 @@ classDiagram
 
 ### Strategy — форматы файлов и чисел
 
-Таблицу можно сохранить в разных форматах: в моём собственном и в CSV. Каждый формат — отдельный класс с одинаковым интерфейсом `FileFormat`. Иначе пришлось бы писать много методов `saveCsv`, `loadCsv` и т.д. прямо в `Spreadsheet`.
+Таблицу можно читать и сохранять в разных форматах. Каждый формат — отдельный класс с интерфейсом `FileReader` или `FileWriter`. Иначе пришлось бы писать методы `saveCsv`, `loadCsv` и т.д. прямо в `Spreadsheet`.
 
-На втором этапе форматы чисел (`NumberFormat`) будут устроены так же.
+На втором этапе форматы чисел (`NumberFormat`) будут устроены так же, `FixedFormat` уже показан в тестах.
 
 ### Facade — Spreadsheet
 
-Чтобы записать значение в ячейку, нужно разобрать формулу, обновить граф, пересчитать ячейки и сообщить подписчикам. Всё это делает `Spreadsheet`, а `app` вызывает только `setInput`. Так проще следить, чтобы при ошибке таблица не испортилась.
+Чтобы записать значение в ячейку, нужно разобрать формулу, обновить граф, пересчитать ячейки и сообщить подписчикам. Всё это делает `Spreadsheet`, а `ss_app` вызывает только `set_input`. Так проще следить, чтобы при ошибке таблица не испортилась.
 
 ### Другие
 
-- Слои: `core`, `app` и интерфейс (описаны выше).
-- MVC: модель — `Spreadsheet` и `Session`, контроллер — режимы и действия, вид — классы `*View`.
+- Слои: `ss_core`, `ss_app` и интерфейс (описаны выше).
+- MVC: модель — `Spreadsheet` и `Session`, контроллер — режимы и действия, вид — TUI, который читает `SessionView`.
+
+## Что изменилось по сравнению с первой версией
+
+Пока я писал код, часть решений из первой версии этого документа пришлось поменять.
+
+| Было | Стало | Почему |
+|---|---|---|
+| `FileFormat { load; save }` | `FileReader` и `FileWriter` | CSV на первом этапе только читается, иначе `save` был бы заглушкой (LSP, ISP) |
+| `load(istream, Spreadsheet)` | `load(istream, CellSink&)`, `save(ostream, const CellSource&)` | формату не нужна вся таблица (ISP) |
+| `Parser` зависит от `FunctionRegistry` | от интерфейса `FunctionProvider` | парсер можно тестировать с подделкой (DIP) |
+| `FunctionRegistry::withBuiltins()` | свободная `register_builtins(FunctionRegistry&)` | реестр не должен знать конкретные функции (OCP) |
+| узел владеет `unique_ptr<Function>` | `shared_ptr<const Function>` | функции без состояния, а `clone()` должен копировать узел без реестра |
+| `EvalContext { valueAt, evaluate }` | плюс `evaluate_flat` | `SUM(A1:A3, 5)` разворачивает диапазон без `dynamic_cast` |
+| `Spreadsheet` реализует `EvalContext` | внутренний `SheetEvalContext` | `evaluate` не нужен в публичном API таблицы (ISP, SRP) |
+| нет | `CellInputParser`, `Recalculator` | вынесены из `Spreadsheet` (SRP) |
+| `affectedInOrder` и `cycleThrough` | один `plan(changed)` с `order` и `cyclic` | один обход графа вместо двух |
+| `Action::execute(Session)` | `execute(Session&, span<const string> args)` | командам `:w файл`, `:e файл` нужны аргументы |
+| `EditCommand` только на этапе 2 | уже сейчас, через `SetCellCommand` | все правки сразу идут через команды, и undo потом не потребует переделок (OCP) |
+| `Session` подписана на `Spreadsheet` | не подписана | все изменения документа и так идут через `Session` |
+| `Keymap::load(path)` | `load(path, known_actions)` | неизвестное действие в конфиге видно сразу, с номером строки |
+| нет | `MainThreadDispatcher`, `SessionView`, `CellPresenter`, `LineEditor` | `ss_app` не зависит от FTXUI (DIP), в TUI не остаётся логики |
+| `CellStyle` в `Cell` | пока нет | появится на втором этапе, заглушку заранее не добавлял |
