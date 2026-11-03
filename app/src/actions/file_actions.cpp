@@ -1,16 +1,38 @@
 #include "actions/file_actions.hpp"
 
 #include <filesystem>
+#include <functional>
+#include <memory>
 #include <string>
 
 #include "app/document_io.hpp"
 #include "app/errors.hpp"
 #include "app/session.hpp"
 #include "core/io/format_registry.hpp"
+#include "core/spreadsheet.hpp"
 
 namespace ss::app {
 
 namespace {
+
+// Загружает файл в фоне. Формат проверяем сразу: если его нет,
+// ошибка будет видна без всякого потока.
+void load_in_background(Session& session, const std::filesystem::path& path,
+                        std::function<void(Session&, std::unique_ptr<ss::core::Spreadsheet>)> done) {
+    const ss::core::FileReader& reader = session.formats().reader_for(path.string());
+    const ss::core::FunctionProvider& functions = session.functions();
+    session.set_status("загрузка " + path.string() + "...");
+    // В фоне трогаем только reader и functions, их никто не меняет,
+    // так что читать из двух потоков можно. Сеанс тут не используется.
+    session.run_in_background([path, &reader, &functions, done = std::move(done)](
+                                  std::stop_token) -> std::function<void(Session&)> {
+        // std::function нужна копируемая лямбда, а unique_ptr не копируется,
+        // поэтому таблицу кладём в shared_ptr и забираем из него в done
+        auto document = std::make_shared<std::unique_ptr<ss::core::Spreadsheet>>(
+            load_document(path, reader, functions));
+        return [document, done](Session& target) { done(target, std::move(*document)); };
+    });
+}
 
 // ровно один аргумент, путь к файлу
 std::filesystem::path path_argument(std::string_view name, std::span<const std::string> args) {
@@ -59,10 +81,11 @@ std::string_view OpenAction::description() const {
 
 void OpenAction::execute(Session& session, std::span<const std::string> args) const {
     const std::filesystem::path path = path_argument(name(), args);
-    const ss::core::FileReader& reader = session.formats().reader_for(path.string());
     // грузим в новую таблицу, старая заменится только если всё прочиталось
-    session.replace_document(load_document(path, reader, session.functions()), path);
-    session.set_status("открыт " + path.string());
+    load_in_background(session, path, [path](Session& target, std::unique_ptr<ss::core::Spreadsheet> document) {
+        target.replace_document(std::move(document), path);
+        target.set_status("открыт " + path.string());
+    });
 }
 
 std::string_view ImportCsvAction::name() const {
@@ -75,9 +98,10 @@ std::string_view ImportCsvAction::description() const {
 
 void ImportCsvAction::execute(Session& session, std::span<const std::string> args) const {
     const std::filesystem::path path = path_argument(name(), args);
-    const ss::core::FileReader& reader = session.formats().reader_for(path.string());
-    session.import_document(load_document(path, reader, session.functions()));
-    session.set_status("загружен " + path.string() + ", сохраните через :w путь");
+    load_in_background(session, path, [path](Session& target, std::unique_ptr<ss::core::Spreadsheet> document) {
+        target.import_document(std::move(document));
+        target.set_status("загружен " + path.string() + ", сохраните через :w путь");
+    });
 }
 
 }  // namespace ss::app

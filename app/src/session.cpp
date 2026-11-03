@@ -13,13 +13,14 @@ namespace ss::app {
 
 Session::Session(const ss::core::FunctionProvider& functions,
                  const ss::core::FormatRegistry& formats, const ActionRegistry& actions,
-                 Keymap keymap)
+                 Keymap keymap, MainThreadDispatcher& dispatcher)
     : functions_(functions),
       formats_(formats),
       actions_(actions),
       keymap_(std::move(keymap)),
       document_(std::make_unique<ss::core::Spreadsheet>(functions)),
-      mode_(std::make_unique<NormalMode>()) {}
+      mode_(std::make_unique<NormalMode>()),
+      tasks_(dispatcher) {}
 
 Session::~Session() = default;
 
@@ -109,6 +110,46 @@ void Session::request_quit() {
     quit_requested_ = true;
 }
 
+void Session::run_in_background(BackgroundWork work) {
+    ++background_tasks_;
+    const std::weak_ptr<bool> alive = alive_;
+    // эта лямбда выполняется в фоне: this тут только запоминаем
+    tasks_.submit([this, alive, work = std::move(work)](std::stop_token stop) {
+        std::function<void(Session&)> next;
+        std::exception_ptr error;
+        try {
+            next = work(stop);
+        } catch (...) {
+            error = std::current_exception();
+        }
+        // а эта уже в главном потоке, там же, где удаляется сеанс,
+        // поэтому проверка alive и обращение к this не пересекутся
+        return [this, alive, next = std::move(next), error] {
+            if (!alive.expired()) {
+                finish_background(next, error);
+            }
+        };
+    });
+}
+
+void Session::finish_background(const std::function<void(Session&)>& next,
+                                const std::exception_ptr& error) {
+    --background_tasks_;
+    try {
+        if (error) {
+            std::rethrow_exception(error);
+        }
+        if (next) {
+            next(*this);
+        }
+    } catch (const std::exception& exception) {
+        // в фоне может прилететь и не наша ошибка, например от файловой
+        // системы. Это всё равно просто неудачная загрузка.
+        set_status(exception.what(), Status::Kind::Error);
+    }
+    notify();
+}
+
 void Session::set_document(std::unique_ptr<ss::core::Spreadsheet> document) {
     document_ = std::move(document);
     set_cursor({.row = 0, .col = 0});
@@ -183,6 +224,10 @@ const std::optional<std::filesystem::path>& Session::current_path() const {
 
 bool Session::quit_requested() const {
     return quit_requested_;
+}
+
+bool Session::busy() const {
+    return background_tasks_ > 0;
 }
 
 }  // namespace ss::app

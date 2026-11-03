@@ -45,6 +45,8 @@ public:
     virtual const std::optional<std::filesystem::path>& current_path() const = 0;
     // TUI проверяет после каждой клавиши и выходит из цикла
     virtual bool quit_requested() const = 0;
+    // идёт фоновая загрузка, можно показать "загрузка..."
+    virtual bool busy() const = 0;
 
 protected:
     SessionView() = default;

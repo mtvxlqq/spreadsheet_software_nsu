@@ -16,10 +16,12 @@ add_library(ss_app STATIC
     src/register_actions.cpp
     src/session.cpp
     src/set_cell_command.cpp
+    src/task_runner.cpp
     src/viewport.cpp
 )
 target_include_directories(ss_app PUBLIC include)
 # классы конкретных действий снаружи не нужны
 target_include_directories(ss_app PRIVATE src)
-target_link_libraries(ss_app PUBLIC ss_core)
+find_package(Threads REQUIRED)
+target_link_libraries(ss_app PUBLIC ss_core Threads::Threads)
 ss_set_warnings(ss_app)

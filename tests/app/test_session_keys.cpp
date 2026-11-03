@@ -20,6 +20,7 @@
 #include "core/io/format_registry.hpp"
 #include "core/io/register_formats.hpp"
 #include "core/value.hpp"
+#include "support/manual_dispatcher.hpp"
 #include "support/printers.hpp"
 
 using ss::app::Session;
@@ -107,7 +108,8 @@ protected:
     ss::core::FunctionRegistry functions;
     ss::core::FormatRegistry formats;
     ss::app::ActionRegistry actions;
-    Session session{functions, formats, actions, ss::app::Keymap::defaults()};
+    ss::test::ManualDispatcher dispatcher;
+    Session session{functions, formats, actions, ss::app::Keymap::defaults(), dispatcher};
 };
 
 }  // namespace

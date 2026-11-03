@@ -18,6 +18,7 @@
 #include "core/io/format_registry.hpp"
 #include "core/io/register_formats.hpp"
 #include "core/value.hpp"
+#include "support/manual_dispatcher.hpp"
 #include "support/printers.hpp"
 
 namespace fs = std::filesystem;
@@ -92,6 +93,15 @@ protected:
         session.handle_key(":");
         type(line);
         session.handle_key("enter");
+        finish_background();
+    }
+
+    // open и import грузят в фоне, дожидаемся и выполняем продолжения
+    void finish_background() {
+        while (session.busy()) {
+            ASSERT_TRUE(dispatcher.wait_for_task());
+            dispatcher.drain();
+        }
     }
 
     void input(std::string_view address, std::string_view raw) {
@@ -118,7 +128,8 @@ protected:
     ss::core::FunctionRegistry functions;
     ss::core::FormatRegistry formats;
     ss::app::ActionRegistry actions;
-    Session session{functions, formats, actions, ss::app::Keymap::defaults()};
+    ss::test::ManualDispatcher dispatcher;
+    Session session{functions, formats, actions, ss::app::Keymap::defaults(), dispatcher};
     fs::path dir;
 };
 

@@ -1,7 +1,9 @@
 #pragma once
 
 #include <cstddef>
+#include <exception>
 #include <filesystem>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -13,6 +15,7 @@
 #include "app/mode.hpp"
 #include "app/session_view.hpp"
 #include "app/status.hpp"
+#include "app/task_runner.hpp"
 #include "app/viewport.hpp"
 #include "core/address.hpp"
 #include "core/spreadsheet.hpp"
@@ -26,6 +29,7 @@ namespace ss::app {
 
 class ActionRegistry;
 class EditCommand;
+class MainThreadDispatcher;
 class SessionObserver;
 
 // Текущая работа с программой: документ, курсор, режим, строка правки,
@@ -33,9 +37,13 @@ class SessionObserver;
 // меняют сеанс через методы ниже.
 class Session final : public SessionView {
 public:
-    // functions, formats и actions должны жить дольше сеанса
+    // Выполняется в фоне и не трогает сеанс. Возвращает то, что потом
+    // сделать с сеансом в главном потоке.
+    using BackgroundWork = std::function<std::function<void(Session&)>(std::stop_token)>;
+
+    // functions, formats, actions и dispatcher должны жить дольше сеанса
     Session(const ss::core::FunctionProvider& functions, const ss::core::FormatRegistry& formats,
-            const ActionRegistry& actions, Keymap keymap);
+            const ActionRegistry& actions, Keymap keymap, MainThreadDispatcher& dispatcher);
     ~Session() override;
 
     // Вход от TUI. Ошибки (ss::core::Error) не вылетают наружу,
@@ -63,6 +71,10 @@ public:
     // документ записан в path
     void mark_saved(std::filesystem::path path);
     void request_quit();
+
+    // Если work бросит, ошибка попадёт в статус. Если сеанс к тому
+    // времени уже удалён, продолжение просто ничего не сделает.
+    void run_in_background(BackgroundWork work);
 
     LineEditor& edit_line() {
         return edit_line_;
@@ -104,9 +116,12 @@ public:
     bool dirty() const override;
     const std::optional<std::filesystem::path>& current_path() const override;
     bool quit_requested() const override;
+    bool busy() const override;
 
 private:
     void notify();
+    void finish_background(const std::function<void(Session&)>& next,
+                           const std::exception_ptr& error);
     void set_document(std::unique_ptr<ss::core::Spreadsheet> document);
 
     const ss::core::FunctionProvider& functions_;
@@ -125,7 +140,13 @@ private:
     bool dirty_ = false;
     std::optional<std::filesystem::path> current_path_;
     bool quit_requested_ = false;
+    int background_tasks_ = 0;
     std::vector<SessionObserver*> observers_;
+    // Продолжения держат weak_ptr на это. Пока сеанс жив, он не истёк.
+    std::shared_ptr<bool> alive_ = std::make_shared<bool>(true);
+    // Последним полем, чтобы удалиться первым: деструктор дождётся фоновых
+    // потоков, пока остальные поля сеанса ещё живы.
+    TaskRunner tasks_;
 };
 
 }  // namespace ss::app
