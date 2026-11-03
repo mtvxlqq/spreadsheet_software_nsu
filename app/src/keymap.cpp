@@ -85,6 +85,10 @@ std::optional<std::string> normalize_base(std::string_view key) {
 
 }  // namespace
 
+bool is_text_key(std::string_view key) {
+    return is_single_char(key);
+}
+
 Keymap Keymap::defaults() {
     Keymap keymap;
     keymap.bind("up", "move-up");

@@ -37,7 +37,11 @@ ss_set_warnings(core_tests)
 gtest_discover_tests(core_tests)
 
 add_executable(app_tests
+    app/test_edit_command.cpp
     app/test_keymap.cpp
+    app/test_line_editor.cpp
+    app/test_session_keys.cpp
+    app/test_viewport.cpp
 )
 target_include_directories(app_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_definitions(app_tests PRIVATE SS_TESTDATA_DIR="${PROJECT_SOURCE_DIR}/testdata")
