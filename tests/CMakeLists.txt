@@ -35,3 +35,12 @@ target_compile_definitions(core_tests PRIVATE SS_TESTDATA_DIR="${PROJECT_SOURCE_
 target_link_libraries(core_tests PRIVATE ss_core GTest::gtest_main)
 ss_set_warnings(core_tests)
 gtest_discover_tests(core_tests)
+
+add_executable(app_tests
+    app/test_keymap.cpp
+)
+target_include_directories(app_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_definitions(app_tests PRIVATE SS_TESTDATA_DIR="${PROJECT_SOURCE_DIR}/testdata")
+target_link_libraries(app_tests PRIVATE ss_app GTest::gtest_main)
+ss_set_warnings(app_tests)
+gtest_discover_tests(app_tests)
