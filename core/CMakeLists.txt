@@ -19,6 +19,8 @@ add_library(ss_core STATIC
     src/recalculator.cpp
     src/ref_collector.cpp
     src/sheet.cpp
+    src/sheet_eval_context.cpp
+    src/spreadsheet.cpp
     src/text.cpp
     src/value.cpp
 )
