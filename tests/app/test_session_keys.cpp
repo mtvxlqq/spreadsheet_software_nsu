@@ -361,6 +361,7 @@ TEST_F(SessionKeysTest, ObserverMayUnsubscribeDuringNotification) {
 
 TEST_F(SessionKeysTest, NormalModeDrawsPlainTable) {
     EXPECT_EQ(session.mode_name(), "normal");
+    EXPECT_FALSE(session.edits_cell());
     EXPECT_FALSE(session.shows_help());
     EXPECT_FALSE(session.uses_command_line());
 }
@@ -368,6 +369,7 @@ TEST_F(SessionKeysTest, NormalModeDrawsPlainTable) {
 TEST_F(SessionKeysTest, EditModeDrawsPlainTable) {
     press({"enter"});
     EXPECT_EQ(session.mode_name(), "edit");
+    EXPECT_TRUE(session.edits_cell());
     EXPECT_FALSE(session.shows_help());
     EXPECT_FALSE(session.uses_command_line());
 }
@@ -375,6 +377,7 @@ TEST_F(SessionKeysTest, EditModeDrawsPlainTable) {
 TEST_F(SessionKeysTest, CommandModeUsesCommandLine) {
     press({":"});
     EXPECT_EQ(session.mode_name(), "command");
+    EXPECT_FALSE(session.edits_cell());
     EXPECT_FALSE(session.shows_help());
     EXPECT_TRUE(session.uses_command_line());
     press({"esc"});

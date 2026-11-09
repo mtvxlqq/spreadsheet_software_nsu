@@ -17,6 +17,7 @@ FetchContent_MakeAvailable(ftxui)
 add_library(ss_tui STATIC
     src/key_names.cpp
     src/screen_layout.cpp
+    src/screen_view.cpp
     src/text_fit.cpp
 )
 target_include_directories(ss_tui PUBLIC include)

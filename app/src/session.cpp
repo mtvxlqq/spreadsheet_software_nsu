@@ -189,6 +189,10 @@ std::string_view Session::mode_name() const {
     return mode_->name();
 }
 
+bool Session::edits_cell() const {
+    return mode_->edits_cell();
+}
+
 bool Session::shows_help() const {
     return mode_->shows_help();
 }

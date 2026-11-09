@@ -56,6 +56,7 @@ gtest_discover_tests(app_tests)
 add_executable(tui_tests
     tui/test_key_names.cpp
     tui/test_screen_layout.cpp
+    tui/test_screen_view.cpp
     tui/test_text_fit.cpp
 )
 target_include_directories(tui_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
