@@ -16,6 +16,8 @@ FetchContent_MakeAvailable(ftxui)
 # отдельная библиотека, иначе код интерфейса нечем подключить к тестам
 add_library(ss_tui STATIC
     src/key_names.cpp
+    src/screen_layout.cpp
+    src/text_fit.cpp
 )
 target_include_directories(ss_tui PUBLIC include)
 target_link_libraries(ss_tui PUBLIC ss_app ftxui::component)
