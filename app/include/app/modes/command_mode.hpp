@@ -17,6 +17,10 @@ public:
     std::string_view name() const override;
     void handle_key(Session& session, std::string_view key) const override;
 
+    bool uses_command_line() const override {
+        return true;
+    }
+
     // слова через пробелы, пустых не бывает
     static std::vector<std::string> split_words(std::string_view line);
 };

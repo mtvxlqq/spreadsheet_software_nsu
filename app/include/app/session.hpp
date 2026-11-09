@@ -108,6 +108,8 @@ public:
     ss::core::CellAddress cursor() const override;
     const Viewport& viewport() const override;
     std::string_view mode_name() const override;
+    bool shows_help() const override;
+    bool uses_command_line() const override;
     const Status& status() const override;
     const std::string& edit_buffer() const override;
     std::size_t edit_caret() const override;

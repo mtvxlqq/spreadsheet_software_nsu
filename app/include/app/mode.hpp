@@ -27,6 +27,16 @@ public:
         return false;
     }
 
+    // Что рисовать, TUI узнаёт отсюда, а не по имени режима. Новому режиму
+    // переопределять их не нужно, и в TUI ничего менять не придётся.
+    virtual bool shows_help() const {
+        return false;
+    }
+
+    virtual bool uses_command_line() const {
+        return false;
+    }
+
 protected:
     Mode() = default;
 };

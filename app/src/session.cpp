@@ -189,6 +189,14 @@ std::string_view Session::mode_name() const {
     return mode_->name();
 }
 
+bool Session::shows_help() const {
+    return mode_->shows_help();
+}
+
+bool Session::uses_command_line() const {
+    return mode_->uses_command_line();
+}
+
 const Status& Session::status() const {
     return status_;
 }

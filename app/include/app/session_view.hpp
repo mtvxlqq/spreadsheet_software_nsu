@@ -31,6 +31,10 @@ public:
     virtual ss::core::CellAddress cursor() const = 0;
     virtual const Viewport& viewport() const = 0;
     virtual std::string_view mode_name() const = 0;
+    // вместо таблицы рисуется справка
+    virtual bool shows_help() const = 0;
+    // на месте строки формулы рисуется командная строка
+    virtual bool uses_command_line() const = 0;
     virtual const Status& status() const = 0;
     // строка правки или командная строка, смотря какой режим
     virtual const std::string& edit_buffer() const = 0;

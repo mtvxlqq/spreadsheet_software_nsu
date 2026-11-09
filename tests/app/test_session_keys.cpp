@@ -358,3 +358,43 @@ TEST_F(SessionKeysTest, ObserverMayUnsubscribeDuringNotification) {
     EXPECT_EQ(counting.calls, 2);
     session.unsubscribe(&counting);
 }
+
+TEST_F(SessionKeysTest, NormalModeDrawsPlainTable) {
+    EXPECT_EQ(session.mode_name(), "normal");
+    EXPECT_FALSE(session.shows_help());
+    EXPECT_FALSE(session.uses_command_line());
+}
+
+TEST_F(SessionKeysTest, EditModeDrawsPlainTable) {
+    press({"enter"});
+    EXPECT_EQ(session.mode_name(), "edit");
+    EXPECT_FALSE(session.shows_help());
+    EXPECT_FALSE(session.uses_command_line());
+}
+
+TEST_F(SessionKeysTest, CommandModeUsesCommandLine) {
+    press({":"});
+    EXPECT_EQ(session.mode_name(), "command");
+    EXPECT_FALSE(session.shows_help());
+    EXPECT_TRUE(session.uses_command_line());
+    press({"esc"});
+    EXPECT_FALSE(session.uses_command_line());
+}
+
+TEST_F(SessionKeysTest, HelpModeShowsHelp) {
+    press({"?"});
+    EXPECT_EQ(session.mode_name(), "help");
+    EXPECT_TRUE(session.shows_help());
+    EXPECT_FALSE(session.uses_command_line());
+    press({"x"});
+    EXPECT_FALSE(session.shows_help());
+}
+
+// новый режим ничего не обязан знать про отрисовку
+TEST_F(SessionKeysTest, NewModeDrawsPlainTableByDefault) {
+    std::string last_seen;
+    session.set_mode(std::make_unique<SelfReplacingMode>("custom", last_seen));
+    EXPECT_EQ(session.mode_name(), "custom");
+    EXPECT_FALSE(session.shows_help());
+    EXPECT_FALSE(session.uses_command_line());
+}
