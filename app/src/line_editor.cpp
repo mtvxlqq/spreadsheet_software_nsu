@@ -3,17 +3,9 @@
 #include <utility>
 
 #include "app/keymap.hpp"
+#include "core/text.hpp"
 
 namespace ss::app {
-
-namespace {
-
-// байты 10xxxxxx это продолжение символа UTF-8
-bool is_continuation(char c) {
-    return (static_cast<unsigned char>(c) >> 6) == 0x2;
-}
-
-}  // namespace
 
 void LineEditor::set_text(std::string text) {
     text_ = std::move(text);
@@ -83,7 +75,7 @@ std::size_t LineEditor::previous_char() const {
         return 0;
     }
     --position;
-    while (position > 0 && is_continuation(text_[position])) {
+    while (position > 0 && ss::core::is_utf8_continuation(text_[position])) {
         --position;
     }
     return position;
@@ -95,7 +87,7 @@ std::size_t LineEditor::next_char() const {
         return position;
     }
     ++position;
-    while (position < text_.size() && is_continuation(text_[position])) {
+    while (position < text_.size() && ss::core::is_utf8_continuation(text_[position])) {
         ++position;
     }
     return position;

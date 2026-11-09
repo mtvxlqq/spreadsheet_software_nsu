@@ -10,7 +10,7 @@ class UnaryExpr;
 class BinaryExpr;
 class FunctionCallExpr;
 
-// Операция над деревом формулы (паттерн Visitor). Новая операция - это новый
+// Операция над деревом формулы (паттерн Visitor). Новая операция это новый
 // посетитель, а классы узлов при этом не меняются.
 class ExprVisitor {
 public:

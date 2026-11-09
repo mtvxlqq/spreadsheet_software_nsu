@@ -22,7 +22,7 @@ public:
     virtual std::string_view name() const = 0;
     // в нижнем регистре и с точкой, например ".sst"
     virtual std::vector<std::string> extensions() const = 0;
-    // битый файл -> FileFormatError с номером строки. Что успело попасть
+    // На битом файле бросает FileFormatError с номером строки. Что успело попасть
     // в sink до ошибки, там и останется, поэтому грузить надо в новую таблицу.
     virtual void load(std::istream& in, CellSink& sink) const = 0;
 

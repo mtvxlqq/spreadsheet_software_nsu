@@ -63,9 +63,7 @@ void Session::move_cursor(int d_row, int d_col) {
 }
 
 void Session::set_cursor(ss::core::CellAddress cell) {
-    if (!cell.is_valid()) {
-        throw ss::core::LimitError("ячейка " + cell.to_string() + " за пределами листа");
-    }
+    cell.check_valid();
     cursor_ = cell;
     viewport_.ensure_visible(cursor_);
 }

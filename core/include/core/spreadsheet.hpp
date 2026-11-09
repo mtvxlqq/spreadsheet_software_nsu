@@ -26,8 +26,8 @@ public:
     // functions должен жить дольше таблицы
     explicit Spreadsheet(const FunctionProvider& functions);
 
-    // Строгая гарантия: если бросит (ParseError, LimitError), таблица
-    // и наблюдатели ничего не заметят.
+    // Если бросит (ParseError, LimitError), таблица останется как была,
+    // и наблюдатели ничего не услышат.
     void set_input(CellAddress address, std::string_view raw) override;
     void clear(CellAddress address) override;
 

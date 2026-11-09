@@ -16,7 +16,7 @@ struct RecalcPlan;
 class Recalculator {
 public:
     // Возвращает все адреса из плана, сначала order, потом cyclic: это то,
-    // о чём надо сообщить наблюдателям. Исключений не бросает, кроме bad_alloc.
+    // о чём надо сообщить наблюдателям. Бросить может разве что bad_alloc.
     static std::vector<CellAddress> run(const RecalcPlan& plan, Sheet& sheet,
                                         EvalContext& context);
 };

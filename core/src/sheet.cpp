@@ -4,8 +4,6 @@
 #include <utility>
 #include <vector>
 
-#include "core/errors.hpp"
-
 namespace ss::core {
 
 const Cell* Sheet::get(CellAddress address) const {
@@ -14,9 +12,7 @@ const Cell* Sheet::get(CellAddress address) const {
 }
 
 void Sheet::set(CellAddress address, Cell cell) {
-    if (!address.is_valid()) {
-        throw LimitError("ячейка " + address.to_string() + " за пределами листа");
-    }
+    address.check_valid();
     cells_.insert_or_assign(address, std::move(cell));
 }
 
@@ -53,7 +49,7 @@ void Sheet::for_each(const std::function<void(CellAddress, const Cell&)>& fn) co
     for (const auto& [address, cell] : cells_) {
         addresses.push_back(address);
     }
-    std::sort(addresses.begin(), addresses.end());
+    std::ranges::sort(addresses);
     for (const CellAddress address : addresses) {
         fn(address, cells_.at(address));
     }

@@ -34,11 +34,11 @@ public:
     // то же самое, но из потока, так проще тестировать
     static KeymapLoadResult load(std::istream& in, const std::vector<std::string>& known_actions);
 
-    // Приводит имя клавиши к одному виду ("Ctrl+S" -> "ctrl+s").
+    // Приводит имя клавиши к одному виду: "Ctrl+S" станет "ctrl+s".
     // nullopt, если такой клавиши нет.
     static std::optional<std::string> normalize_key(std::string_view key);
 
-    // старая привязка этой клавиши заменяется; кривая клавиша -> ConfigError
+    // старая привязка этой клавиши заменяется; на непонятную клавишу бросает ConfigError
     void bind(std::string_view key, std::string action);
 
     std::optional<std::string> action_for(std::string_view key) const;

@@ -6,7 +6,6 @@
 
 #include "core/cell.hpp"
 #include "core/cell_observer.hpp"
-#include "core/errors.hpp"
 #include "core/formula_printer.hpp"
 #include "core/recalculator.hpp"
 #include "core/ref_collector.hpp"
@@ -19,9 +18,7 @@ Spreadsheet::Spreadsheet(const FunctionProvider& functions) : input_parser_(func
 // Сначала всё, что может бросить, пока таблица не тронута: разбор ввода
 // и сбор ссылок. Потом граф и лист, и только потом пересчёт.
 void Spreadsheet::set_input(CellAddress address, std::string_view raw) {
-    if (!address.is_valid()) {
-        throw LimitError("ячейка " + address.to_string() + " за пределами листа");
-    }
+    address.check_valid();
     std::optional<Cell> cell = input_parser_.parse(raw);
     if (!cell) {
         clear(address);
@@ -93,8 +90,7 @@ void Spreadsheet::recalculate_all() {
 }
 
 void Spreadsheet::subscribe(CellObserver* observer) {
-    if (observer != nullptr &&
-        std::find(observers_.begin(), observers_.end(), observer) == observers_.end()) {
+    if (observer != nullptr && std::ranges::find(observers_, observer) == observers_.end()) {
         observers_.push_back(observer);
     }
 }
@@ -116,7 +112,7 @@ void Spreadsheet::notify(const std::vector<CellAddress>& cells) {
     }
     const std::vector<CellObserver*> snapshot = observers_;
     for (CellObserver* observer : snapshot) {
-        if (std::find(observers_.begin(), observers_.end(), observer) != observers_.end()) {
+        if (std::ranges::find(observers_, observer) != observers_.end()) {
             observer->on_cells_changed(cells);
         }
     }

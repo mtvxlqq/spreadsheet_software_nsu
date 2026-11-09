@@ -55,8 +55,8 @@ std::string unescape(std::string_view text, std::size_t line) {
     return result;
 }
 
-// файл могли сохранить в Windows. В конце raw \r быть не может,
-// CellInputParser обрезает пробелы по краям.
+// Файл могли сохранить в Windows, там строки кончаются на \r\n. Своего \r
+// в конце raw быть не может: CellInputParser всё равно обрезает края.
 void drop_cr(std::string& line) {
     if (!line.empty() && line.back() == '\r') {
         line.pop_back();

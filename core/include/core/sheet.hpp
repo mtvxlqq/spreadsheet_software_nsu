@@ -18,7 +18,7 @@ public:
     // nullptr, если ячейка пустая. Указатель живёт до следующего set/remove.
     const Cell* get(CellAddress address) const;
 
-    // адрес за пределами листа -> LimitError
+    // адрес вне листа даёт LimitError
     void set(CellAddress address, Cell cell);
     void remove(CellAddress address) noexcept;
 

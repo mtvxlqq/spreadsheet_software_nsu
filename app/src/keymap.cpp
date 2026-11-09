@@ -13,8 +13,10 @@ namespace ss::app {
 
 namespace {
 
+using ss::core::is_utf8_continuation;
 using ss::core::to_lower_ascii;
 using ss::core::trim_spaces;
+using ss::core::utf8_char_length;
 
 constexpr std::string_view ctrl_prefix = "ctrl+";
 
@@ -35,39 +37,20 @@ bool is_named_key(std::string_view key) {
     return false;
 }
 
-// сколько байт занимает символ UTF-8 с таким первым байтом, 0 если байт кривой
-std::size_t utf8_length(unsigned char lead) {
-    if (lead < 0x80) {
-        return 1;
-    }
-    if ((lead >> 5) == 0x6) {
-        return 2;
-    }
-    if ((lead >> 4) == 0xE) {
-        return 3;
-    }
-    if ((lead >> 3) == 0x1E) {
-        return 4;
-    }
-    return 0;
-}
-
-// ровно один печатный символ UTF-8, например "h", "?" или "ж"
+// ровно один печатный символ: "h", "?", "ж"
 bool is_single_char(std::string_view key) {
     if (key.empty()) {
         return false;
     }
     const auto lead = static_cast<unsigned char>(key.front());
-    const std::size_t length = utf8_length(lead);
+    const std::size_t length = utf8_char_length(lead);
     if (length == 0 || length != key.size()) {
         return false;
     }
     if (length == 1) {
-        return lead >= 0x20 && lead != 0x7F;  // без управляющих символов
+        return lead >= 0x20 && lead != 0x7F;  // управляющие символы не в счёт
     }
-    return std::ranges::all_of(key.substr(1), [](char c) {
-        return (static_cast<unsigned char>(c) >> 6) == 0x2;
-    });
+    return std::ranges::all_of(key.substr(1), is_utf8_continuation);
 }
 
 // одиночный символ оставляем как есть ("H" и "h" это разные клавиши),

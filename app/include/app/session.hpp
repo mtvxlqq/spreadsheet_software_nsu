@@ -142,7 +142,7 @@ private:
     bool quit_requested_ = false;
     int background_tasks_ = 0;
     std::vector<SessionObserver*> observers_;
-    // Продолжения держат weak_ptr на это. Пока сеанс жив, он не истёк.
+    // Фоновые продолжения держат на него weak_ptr: истёк, значит сеанса уже нет.
     std::shared_ptr<bool> alive_ = std::make_shared<bool>(true);
     // Последним полем, чтобы удалиться первым: деструктор дождётся фоновых
     // потоков, пока остальные поля сеанса ещё живы.

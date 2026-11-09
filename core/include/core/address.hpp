@@ -13,7 +13,7 @@ namespace ss::core {
 inline constexpr int max_rows = 65536;
 inline constexpr int max_cols = 702;  // A..ZZ
 
-// 0 -> "A", 25 -> "Z", 26 -> "AA"
+// номер столбца буквами: 0 это "A", 25 это "Z", 26 это "AA"
 std::string column_name(int col);
 
 // Строка и столбец считаются с нуля. Адрес может быть и за пределами листа
@@ -26,6 +26,8 @@ struct CellAddress {
     static CellAddress parse(std::string_view text);
 
     bool is_valid() const;
+    // то же, но вне листа бросает LimitError
+    void check_valid() const;
     std::string to_string() const;
 
     // сначала по строке, потом по столбцу

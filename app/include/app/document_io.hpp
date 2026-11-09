@@ -14,8 +14,8 @@ class Spreadsheet;
 namespace ss::app {
 
 // Читает файл в новую таблицу. Если файл битый, бросает, а текущий
-// документ сеанса никто не трогал. Сеанс тут не нужен, поэтому на
-// следующем этапе это можно будет делать в фоновом потоке.
+// документ сеанса никто не трогал. Сеанс тут не нужен, поэтому функцию
+// можно звать из фонового потока.
 std::unique_ptr<ss::core::Spreadsheet> load_document(const std::filesystem::path& path,
                                                       const ss::core::FileReader& reader,
                                                       const ss::core::FunctionProvider& functions);

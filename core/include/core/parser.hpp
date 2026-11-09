@@ -30,7 +30,7 @@ public:
     // nullptr, и при вычислении получится #NAME?
     static ExprPtr parse(std::string_view formula, const FunctionProvider& functions);
 
-    // длиннее не принимаем, чтобы огромная формула не съела стек (в Excel так же)
+    // формулы длиннее не принимаем, в Excel такой же предел
     static constexpr std::size_t max_length = 8192;
     // сколько раз можно вложить скобки, вызовы функций и унарные минусы
     static constexpr int max_depth = 100;

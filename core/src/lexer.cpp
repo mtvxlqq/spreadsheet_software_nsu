@@ -1,34 +1,24 @@
 #include "core/lexer.hpp"
 
+#include <algorithm>
 #include <array>
 #include <string>
 
 #include "core/address.hpp"
 #include "core/errors.hpp"
+#include "core/text.hpp"
 
 namespace ss::core {
 
 namespace {
 
-bool is_digit(char c) {
-    return c >= '0' && c <= '9';
-}
-
-bool is_letter(char c) {
-    return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z');
-}
-
-bool is_space(char c) {
-    return c == ' ' || c == '\t' || c == '\r' || c == '\n';
-}
-
-// '$' считаем частью слова из-за ссылок вида $A$1
+// '$' тоже часть слова, иначе $A$1 развалится на куски
 bool is_word_start(char c) {
-    return is_letter(c) || c == '_' || c == '$';
+    return is_ascii_letter(c) || c == '_' || c == '$';
 }
 
 bool is_word_char(char c) {
-    return is_word_start(c) || is_digit(c);
+    return is_word_start(c) || is_ascii_digit(c);
 }
 
 struct OperatorSpelling {
@@ -54,18 +44,10 @@ constexpr std::array<OperatorSpelling, 14> operator_spellings{{
     {.text = ":", .type = TokenType::Colon},
 }};
 
-// берём символ UTF-8 целиком, чтобы в сообщении не было половины русской буквы
+// символ целиком, чтобы в сообщении не было половинки русской буквы
 std::string utf8_char_at(std::string_view text, std::size_t pos) {
-    const auto lead = static_cast<unsigned char>(text[pos]);
-    std::size_t length = 1;
-    if (lead >= 0xF0) {
-        length = 4;
-    } else if (lead >= 0xE0) {
-        length = 3;
-    } else if (lead >= 0xC0) {
-        length = 2;
-    }
-    return std::string(text.substr(pos, length));
+    const std::size_t length = utf8_char_length(static_cast<unsigned char>(text[pos]));
+    return std::string(text.substr(pos, std::max<std::size_t>(length, 1)));
 }
 
 }  // namespace
@@ -78,7 +60,7 @@ Token Lexer::next() {
     if (pos_ >= text_.size()) {
         return Token{.type = TokenType::End, .text = "", .pos = pos_};
     }
-    if (is_digit(c) || (c == '.' && is_digit(peek(1)))) {
+    if (is_ascii_digit(c) || (c == '.' && is_ascii_digit(peek(1)))) {
         return read_number();
     }
     if (c == '"') {
@@ -102,7 +84,7 @@ void Lexer::skip_spaces() {
 }
 
 void Lexer::skip_digits() {
-    while (is_digit(peek())) {
+    while (is_ascii_digit(peek())) {
         ++pos_;
     }
 }
@@ -120,7 +102,7 @@ Token Lexer::read_number() {
         if (peek() == '+' || peek() == '-') {
             ++pos_;
         }
-        if (!is_digit(peek())) {
+        if (!is_ascii_digit(peek())) {
             throw ParseError("после 'e' в числе должны идти цифры", start);
         }
         skip_digits();

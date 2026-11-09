@@ -3,20 +3,13 @@
 #include <algorithm>
 
 #include "core/errors.hpp"
+#include "core/text.hpp"
 
 namespace ss::core {
 
 namespace {
 
-bool is_ascii_letter(char c) {
-    return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z');
-}
-
-bool is_ascii_digit(char c) {
-    return c >= '0' && c <= '9';
-}
-
-// "AB" -> 27. Если букв слишком много, сразу возвращаем max_cols (первый
+// "AB" это столбец 27. Если букв слишком много, сразу возвращаем max_cols (первый
 // столбец за листом), иначе на длинных именах переполнится int.
 int column_from_letters(std::string_view letters) {
     int number = 0;  // A=1, Z=26, AA=27
@@ -30,7 +23,7 @@ int column_from_letters(std::string_view letters) {
     return number - 1;
 }
 
-// "12" -> 11. Слишком большой номер обрезаем до max_rows по той же причине.
+// "12" это строка 11. Слишком большой номер обрезаем до max_rows по той же причине.
 int row_from_digits(std::string_view digits) {
     int number = 0;
     for (const char c : digits) {
@@ -62,6 +55,12 @@ CellAddress CellAddress::parse(std::string_view text) {
 
 bool CellAddress::is_valid() const {
     return row >= 0 && row < max_rows && col >= 0 && col < max_cols;
+}
+
+void CellAddress::check_valid() const {
+    if (!is_valid()) {
+        throw LimitError("ячейка " + to_string() + " за пределами листа");
+    }
 }
 
 std::string CellAddress::to_string() const {

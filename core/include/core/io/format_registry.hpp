@@ -19,7 +19,7 @@ public:
     void add_reader(std::shared_ptr<const FileReader> reader);
     void add_writer(std::shared_ptr<const FileWriter> writer);
 
-    // расширение без учёта регистра; нет подходящего формата -> FileFormatError
+    // регистр расширения не важен; если формата нет, бросает FileFormatError
     const FileReader& reader_for(std::string_view path) const;
     const FileWriter& writer_for(std::string_view path) const;
 

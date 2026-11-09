@@ -6,15 +6,18 @@ namespace ss::core {
 
 namespace {
 
-std::set<CellAddress> find_or_empty(const std::map<CellAddress, std::set<CellAddress>>& edges,
-                                    CellAddress cell) {
+using Edges = std::map<CellAddress, std::set<CellAddress>>;
+
+// соседи ячейки без копирования; у кого рёбер нет, тем общий пустой set
+const std::set<CellAddress>& edges_of(const Edges& edges, CellAddress cell) {
+    static const std::set<CellAddress> none;
     const auto it = edges.find(cell);
-    return it == edges.end() ? std::set<CellAddress>{} : it->second;
+    return it == edges.end() ? none : it->second;
 }
 
-// убирает ребро from -> to, а пустое множество удаляет целиком
-void erase_edge(std::map<CellAddress, std::set<CellAddress>>& edges, CellAddress from,
-                CellAddress to) noexcept {
+// Убирает одно ребро. Если у from рёбер не осталось, убираем и его,
+// чтобы в map не копились пустые записи.
+void erase_edge(Edges& edges, CellAddress from, CellAddress to) noexcept {
     const auto it = edges.find(from);
     if (it == edges.end()) {
         return;
@@ -27,15 +30,15 @@ void erase_edge(std::map<CellAddress, std::set<CellAddress>>& edges, CellAddress
 
 }  // namespace
 
-// Сначала делаем всё, что может бросить (вставки в map и set), и при ошибке
-// откатываем то, что успели вставить. Удаления старых рёбер и swap не бросают,
-// их делаем в самом конце.
+// Вставки в map и set могут бросить bad_alloc, поэтому делаем их первыми
+// и при ошибке убираем то, что успели вставить. Всё, что после них,
+// бросить уже не может, так что граф не останется сломанным наполовину.
 void DependencyGraph::set_dependencies(CellAddress cell, std::set<CellAddress> dependencies) {
     if (dependencies.empty()) {
         remove_cell(cell);
         return;
     }
-    const std::set<CellAddress> old_dependencies = find_or_empty(dependencies_, cell);
+    const std::set<CellAddress>& old_dependencies = edges_of(dependencies_, cell);
 
     std::vector<CellAddress> added;
     std::set<CellAddress>* current = nullptr;
@@ -55,9 +58,8 @@ void DependencyGraph::set_dependencies(CellAddress cell, std::set<CellAddress> d
         throw;
     }
 
-    // дальше ничего не бросает
     current->swap(dependencies);
-    // теперь в dependencies лежат старые зависимости ячейки
+    // после swap в dependencies лежат старые зависимости
     for (const CellAddress old_dependency : dependencies) {
         if (!current->contains(old_dependency)) {
             erase_edge(dependents_, old_dependency, cell);
@@ -76,30 +78,26 @@ void DependencyGraph::remove_cell(CellAddress cell) noexcept {
     dependencies_.erase(it);
 }
 
-// обход в ширину по обратным рёбрам
+// Идём по обратным рёбрам со своим стеком, а не рекурсией: цепочка
+// A2=A1+1, A3=A2+1, ... на весь столбец переполнила бы стек вызовов.
 std::set<CellAddress> DependencyGraph::collect_affected(
     const std::vector<CellAddress>& changed) const {
     std::set<CellAddress> affected(changed.begin(), changed.end());
-    std::vector<CellAddress> queue(changed.begin(), changed.end());
-    while (!queue.empty()) {
-        const CellAddress cell = queue.back();
-        queue.pop_back();
-        const auto it = dependents_.find(cell);
-        if (it == dependents_.end()) {
-            continue;
-        }
-        for (const CellAddress dependent : it->second) {
+    std::vector<CellAddress> to_visit(changed.begin(), changed.end());
+    while (!to_visit.empty()) {
+        const CellAddress cell = to_visit.back();
+        to_visit.pop_back();
+        for (const CellAddress dependent : edges_of(dependents_, cell)) {
             if (affected.insert(dependent).second) {
-                queue.push_back(dependent);
+                to_visit.push_back(dependent);
             }
         }
     }
     return affected;
 }
 
-// Алгоритм Кана на затронутых ячейках: берём ячейку, у которой все
-// зависимости уже посчитаны, и так далее. Что осталось, лежит в цикле
-// или зависит от цикла.
+// Алгоритм Кана: каждый раз берём ячейку, у которой все зависимости уже
+// посчитаны. Кто так и не дождался своей очереди, сидит в цикле или ниже него.
 RecalcPlan DependencyGraph::plan(const std::vector<CellAddress>& changed) const {
     const std::set<CellAddress> affected = collect_affected(changed);
 
@@ -107,7 +105,7 @@ RecalcPlan DependencyGraph::plan(const std::vector<CellAddress>& changed) const 
     std::map<CellAddress, int> waiting;
     for (const CellAddress cell : affected) {
         int count = 0;
-        for (const CellAddress dependency : find_or_empty(dependencies_, cell)) {
+        for (const CellAddress dependency : edges_of(dependencies_, cell)) {
             if (affected.contains(dependency)) {
                 ++count;
             }
@@ -115,7 +113,7 @@ RecalcPlan DependencyGraph::plan(const std::vector<CellAddress>& changed) const 
         waiting[cell] = count;
     }
 
-    // set вместо очереди, чтобы порядок не зависел от случайностей
+    // set, а не очередь: так порядок всегда один и тот же, и его можно проверить в тестах
     std::set<CellAddress> ready;
     for (const auto& [cell, count] : waiting) {
         if (count == 0) {
@@ -128,11 +126,7 @@ RecalcPlan DependencyGraph::plan(const std::vector<CellAddress>& changed) const 
         const CellAddress cell = *ready.begin();
         ready.erase(ready.begin());
         result.order.push_back(cell);
-        const auto it = dependents_.find(cell);
-        if (it == dependents_.end()) {
-            continue;
-        }
-        for (const CellAddress dependent : it->second) {
+        for (const CellAddress dependent : edges_of(dependents_, cell)) {
             if (--waiting[dependent] == 0) {
                 ready.insert(dependent);
             }
@@ -148,11 +142,11 @@ RecalcPlan DependencyGraph::plan(const std::vector<CellAddress>& changed) const 
 }
 
 std::set<CellAddress> DependencyGraph::dependencies_of(CellAddress cell) const {
-    return find_or_empty(dependencies_, cell);
+    return edges_of(dependencies_, cell);
 }
 
 std::set<CellAddress> DependencyGraph::dependents_of(CellAddress cell) const {
-    return find_or_empty(dependents_, cell);
+    return edges_of(dependents_, cell);
 }
 
 }  // namespace ss::core

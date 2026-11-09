@@ -17,7 +17,7 @@ void HelpMode::handle_key(Session& session, std::string_view /*key*/) const {
     session.set_mode(std::make_unique<NormalMode>());
 }
 
-// строка вида "move-up [k, up]: курсор на строку вверх"
+// строка вида "move-up [k, up]: курсор вверх"
 std::vector<std::string> HelpMode::lines(const ActionRegistry& actions, const Keymap& keymap) {
     std::vector<std::string> result;
     for (const std::string& name : actions.names()) {

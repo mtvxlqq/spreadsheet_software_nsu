@@ -10,9 +10,9 @@ namespace ss::core {
 
 // Что пересчитать и в каком порядке.
 struct RecalcPlan {
-    // к моменту вычисления ячейки все её зависимости уже стоят раньше
+    // каждая ячейка стоит после всех своих зависимостей
     std::vector<CellAddress> order;
-    // ячейки в цикле и всё, что от цикла зависит, им ставится #CYCLE!
+    // ячейки в цикле и всё, что от цикла зависит; им достанется #CYCLE!
     std::set<CellAddress> cyclic;
 };
 
@@ -37,9 +37,9 @@ public:
 private:
     std::set<CellAddress> collect_affected(const std::vector<CellAddress>& changed) const;
 
-    // ячейка -> на кого ссылается её формула
+    // на кого ссылается формула ячейки
     std::map<CellAddress, std::set<CellAddress>> dependencies_;
-    // ячейка -> чьи формулы на неё ссылаются (обратные рёбра)
+    // чьи формулы ссылаются на ячейку, те же рёбра в обратную сторону
     std::map<CellAddress, std::set<CellAddress>> dependents_;
 };
 
