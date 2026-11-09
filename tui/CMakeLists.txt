@@ -19,6 +19,7 @@ add_library(ss_tui STATIC
     src/screen_layout.cpp
     src/screen_view.cpp
     src/text_fit.cpp
+    src/tui_app.cpp
 )
 target_include_directories(ss_tui PUBLIC include)
 target_link_libraries(ss_tui PUBLIC ss_app ftxui::component)
