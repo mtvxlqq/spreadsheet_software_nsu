@@ -13,6 +13,14 @@ set(FTXUI_ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
 set(FTXUI_QUIET ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(ftxui)
 
+# отдельная библиотека, иначе код интерфейса нечем подключить к тестам
+add_library(ss_tui STATIC
+    src/key_names.cpp
+)
+target_include_directories(ss_tui PUBLIC include)
+target_link_libraries(ss_tui PUBLIC ss_app ftxui::component)
+ss_set_warnings(ss_tui)
+
 add_executable(spreadsheet src/main.cpp)
-target_link_libraries(spreadsheet PRIVATE ss_app ftxui::component)
+target_link_libraries(spreadsheet PRIVATE ss_tui)
 ss_set_warnings(spreadsheet)

@@ -52,3 +52,11 @@ target_compile_definitions(app_tests PRIVATE SS_TESTDATA_DIR="${PROJECT_SOURCE_D
 target_link_libraries(app_tests PRIVATE ss_app GTest::gtest_main)
 ss_set_warnings(app_tests)
 gtest_discover_tests(app_tests)
+
+add_executable(tui_tests
+    tui/test_key_names.cpp
+)
+target_include_directories(tui_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(tui_tests PRIVATE ss_tui GTest::gtest_main)
+ss_set_warnings(tui_tests)
+gtest_discover_tests(tui_tests)
