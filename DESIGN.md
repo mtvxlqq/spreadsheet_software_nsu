@@ -6,9 +6,9 @@
 
 ### Адреса и значения
 
-`CellAddress` это просто номер строки и столбца. `CellRef` это ссылка из формулы, в ней ещё есть флаги для `$`. На первом этапе они не нужны, но пригодятся при копировании.
+`CellAddress` это просто номер строки и столбца. `CellRef` это ссылка из формулы, в ней ещё есть флаги для `$`. На вычисление они не влияют, а нужны при копировании: часть ссылки с `$` остаётся на месте, часть без него сдвигается.
 
-Значения сделаны через наследование от `Value`. Так проще добавить новый тип, например дату. Ошибки вроде `#DIV/0!` тоже считаются значением, чтобы ошибка в одной ячейке не ломала остальные. Значение после создания не меняется, поэтому его можно делить через `shared_ptr` между ячейками и потоками.
+Значения сделаны через наследование от `Value`. Так проще добавить новый тип: дата появилась как ещё один наследник. Ошибки вроде `#DIV/0!` тоже считаются значением, чтобы ошибка в одной ячейке не ломала остальные. Значение после создания не меняется, поэтому его можно делить через `shared_ptr` между ячейками и потоками.
 
 ```mermaid
 classDiagram
@@ -38,6 +38,7 @@ classDiagram
     class Value {
         <<abstract>>
         +as_number() optional~double~
+        +as_date() optional~Date~
         +to_text() string
         +display(NumberFormat) string
         +is_error() bool
@@ -46,6 +47,9 @@ classDiagram
         +compare_with_number(double)
         +compare_with_string(string_view)
         +compare_with_empty()
+        +compare_with_date(Date)
+        +plus(Value) ValuePtr
+        +minus(Value) ValuePtr
     }
     class EmptyValue
     class NumberValue {
@@ -57,7 +61,9 @@ classDiagram
     class ErrorValue {
         -ErrorCode code_
     }
-    class DateValue
+    class DateValue {
+        -Date date_
+    }
     class ErrorCode {
         <<enumeration>>
         Div0
@@ -70,11 +76,17 @@ classDiagram
     Value <|-- NumberValue
     Value <|-- StringValue
     Value <|-- ErrorValue
-    Value <|-- DateValue : этап 2
+    Value <|-- DateValue
     ErrorValue --> ErrorCode
 ```
 
-Дату буду хранить как количество дней, тогда разность дат считается обычным вычитанием.
+Дата хранится как количество дней от 1970-01-01 (`std::chrono::sys_days`), поэтому разность дат это обычное вычитание. `as_number()` у даты возвращает это число дней, и `SUM`, `MIN`, `MAX` работают с датами без правок. Вводить дату можно как `2024-03-15` или `15.03.2024`, показывается она всегда в первом виде. Дата, которой не бывает (`31.02.2024`), остаётся текстом.
+
+#### Своя арифметика значения
+
+`=A1-B1` для двух дат должно дать число дней, а `=A1+30` дату. Чтобы `Evaluator` не проверял типы, у `Value` есть `plus` и `minus`. По умолчанию они возвращают `nullptr`, то есть «ничего особенного, считай как числа». `DateValue` их переопределяет: дата минус дата это число, дата плюс или минус число это дата, две даты складывать нельзя (`#VALUE!`). `Evaluator` сначала спрашивает сами значения и только потом считает числами. Сложение он спрашивает у обоих операндов, поэтому `=30+A1` тоже дата. Если результат выходит за годы 0001–9999, получается `#VALUE!`.
+
+Новому типу со своей арифметикой править `Evaluator` не придётся.
 
 #### Как сравниваются значения
 
@@ -83,13 +95,13 @@ classDiagram
 1. `lhs.compare(rhs)` попадает в класс левого значения, например в `NumberValue`. Теперь известно, что слева число.
 2. Он вызывает `rhs.compare_with_number(своё число)`. Этот вызов попадает в класс правого значения, и теперь известны оба типа.
 
-По умолчанию `compare_with_*` возвращает `nullopt` («сравнивать нельзя»), а наследник переопределяет только то, что умеет. Число со строкой не сравнивается, это `#VALUE!`. Пустая ячейка рядом с числом ведёт себя как 0, рядом со строкой как `""`. Строки сравниваются без учёта регистра латиницы.
+По умолчанию `compare_with_*` возвращает `nullopt` («сравнивать нельзя»), а наследник переопределяет только то, что умеет. Число со строкой не сравнивается, это `#VALUE!`. Пустая ячейка рядом с числом ведёт себя как 0, рядом со строкой как `""`. Строки сравниваются без учёта регистра латиницы. Дата сравнивается только с датой и с пустой ячейкой, которая считается раньше любой даты.
 
 ### Формулы
 
 Формула после разбора хранится как дерево. Например, `=A1*2+SUM(B1:B3)`: сверху плюс, слева от него умножение, справа функция.
 
-С этим деревом надо делать несколько разных вещей: считать значение, печатать формулу обратно в текст, искать ссылки на другие ячейки. Каждое такое действие я вынес в отдельный класс-посетитель. Посетители получают узлы как `const`, дерево они не меняют.
+С этим деревом надо делать несколько разных вещей: считать значение, печатать формулу обратно в текст, искать ссылки на другие ячейки, сдвигать ссылки. Каждое такое действие я вынес в отдельный класс-посетитель. Посетители получают узлы как `const`, дерево они не меняют.
 
 ```mermaid
 classDiagram
@@ -100,6 +112,9 @@ classDiagram
     }
     class NumberLit
     class StringLit
+    class ErrorLit {
+        -ErrorCode code_
+    }
     class RefExpr {
         -CellRef ref_
     }
@@ -123,6 +138,7 @@ classDiagram
     }
     Expr <|-- NumberLit
     Expr <|-- StringLit
+    Expr <|-- ErrorLit
     Expr <|-- RefExpr
     Expr <|-- RangeExpr
     Expr <|-- UnaryExpr
@@ -137,6 +153,7 @@ classDiagram
         <<interface>>
         +visit(const NumberLit&)
         +visit(const StringLit&)
+        +visit(const ErrorLit&)
         +visit(const RefExpr&)
         +visit(const RangeExpr&)
         +visit(const UnaryExpr&)
@@ -155,15 +172,62 @@ classDiagram
     }
     class RefShifter {
         +shift(Expr, RefMapping) ExprPtr$
+        +shift_if_changed(Expr, RefMapping) ExprPtr$
     }
     ExprVisitor <|.. Evaluator
     ExprVisitor <|.. FormulaPrinter
     ExprVisitor <|.. RefCollector
     ExprVisitor <|.. RefShifter
     Expr ..> ExprVisitor
+
+    class RefMapping {
+        <<interface>>
+        +map_ref(CellRef) optional~CellRef~
+        +map_range(CellRef, CellRef) optional~pair~
+    }
+    class CopyMapping {
+        -int d_row_
+        -int d_col_
+    }
+    class StructureMapping {
+        -StructureEdit edit_
+    }
+    class StructureEdit {
+        +Kind kind
+        +Axis axis
+        +int at
+        +int count
+    }
+    RefMapping <|.. CopyMapping
+    RefMapping <|.. StructureMapping
+    StructureMapping --> StructureEdit
+    RefShifter --> RefMapping
 ```
 
 Функцию узел хранит через `shared_ptr<const Function>`: у функций нет состояния, один объект делят все формулы. Если функции с таким именем нет, `function_` пустой, и при вычислении получается `#NAME?`.
+
+#### Сдвиг ссылок
+
+Ссылки в формулах приходится менять в двух случаях: формулу скопировали в другое место или в лист вставили (удалили) строки и столбцы. Обход дерева в обоих случаях одинаковый, отличается только правило, что делать с одной ссылкой. Поэтому обходит дерево один посетитель `RefShifter`, а правило ему передаётся объектом `RefMapping`:
+
+- `CopyMapping(d_row, d_col)` сдвигает части ссылки без `$`, части с `$` оставляет. Если ссылка ушла за лист, её больше нет.
+- `StructureMapping` двигает все ссылки, `$` тут ни при чём. Правила как в Excel:
+
+| Что сделали | Ссылка или диапазон | Что получится |
+|---|---|---|
+| вставили строку перед 3 | `A5` | `A6` |
+| вставили строку перед 3 | `A1:A5` | `A1:A6`, диапазон растянулся |
+| вставили строку перед 3 | `A3:A5` | `A4:A6`, сдвинулся целиком |
+| удалили строку 3 | `A3` | `#REF!` |
+| удалили строку 3 | `A5` | `A4` |
+| удалили строку 5 | `A1:A5` | `A1:A4`, диапазон сжался |
+| удалили строки 2–3 | `A2:A3` | `#REF!` |
+
+`RefShifter` строит новое дерево, а не правит старое. Узлы остаются неизменяемыми, и если посреди обхода случится исключение, исходная формула не пострадает.
+
+Когда ссылки больше нет, на её место ставится узел `ErrorLit` с кодом `#REF!`. Отдельный узел нужен потому, что формула хранится в ячейке текстом (`raw`): после удаления строки она выглядит как `=#REF!+1`, сохраняется в файл и должна читаться обратно. Поэтому лексер и парсер понимают `#REF!` в формуле. Другие ошибки в формуле написать нельзя.
+
+Формулу, в которой ни одна ссылка не изменилась, `rewrite_formula` возвращает как была, чтобы не менять то, как её написал пользователь.
 
 ### Парсер и функции
 
@@ -205,11 +269,13 @@ classDiagram
     class MaxFunction
     class AverageFunction
     class IfFunction
+    class DateFunction
     Function <|-- SumFunction
     Function <|-- MinFunction
     Function <|-- MaxFunction
     Function <|-- AverageFunction
     Function <|-- IfFunction
+    Function <|-- DateFunction
 
     class FunctionProvider {
         <<interface>>
@@ -235,13 +301,44 @@ classDiagram
 
 `evaluate_flat` нужен для `SUM(A1:A3, 5)`: функция просит развернуть аргумент, и диапазон превращается в список значений, а не в `#VALUE!`. Так функции не надо проверять, какой узел ей передали.
 
+Функция `DATE(год, месяц, день)` добавлена так же, как любая новая: класс `DateFunction` и строка в `register_builtins`. Парсер для неё не менялся.
+
+#### Что ввели в ячейку
+
+Формула это не единственное, что надо разобрать. `CellInputParser` смотрит на ввод по порядку: пусто значит очистить ячейку, `=` в начале значит формула, апостроф значит текст. Всё остальное он показывает разборщикам значений из `ValueParserRegistry`. Каждый `ValueParser` либо узнаёт свой тип и возвращает значение, либо возвращает `nullptr`. Первый узнавший побеждает, а если не узнал никто, в ячейке текст.
+
+```mermaid
+classDiagram
+    class CellInputParser {
+        +parse(string_view) optional~Cell~
+    }
+    class ValueParser {
+        <<interface>>
+        +parse(string_view) ValuePtr
+    }
+    class NumberParser
+    class DateParser
+    class ValueParserRegistry {
+        -vector~shared_ptr~ValueParser~~ parsers_
+        +add(shared_ptr~const ValueParser~) void
+        +parse(string_view) ValuePtr
+    }
+    ValueParser <|.. NumberParser
+    ValueParser <|.. DateParser
+    ValueParserRegistry o-- ValueParser
+    CellInputParser --> ValueParserRegistry
+    CellInputParser --> FunctionProvider
+```
+
+Числа и даты регистрирует `register_value_parsers`. Раньше число читалось прямо в `CellInputParser`, и для даты туда пришлось бы дописывать ещё одну ветку, а потом ещё одну для каждого нового типа.
+
 ### Лист, граф зависимостей и файлы
 
 `Sheet` хранит только заполненные ячейки, пустые не хранятся.
 
 `DependencyGraph` помнит, какая ячейка от какой зависит. По нему видно, что надо пересчитать после изменения ячейки.
 
-`Spreadsheet` это главный класс ядра. Всё остальное (лист, граф, парсер) используется через него.
+`Spreadsheet` это главный класс ядра. Всё остальное (лист, граф, парсер) используется через него. Кроме ячеек он хранит оформление: стили ячеек в `StyleTable` и ширины столбцов в `ColumnWidths`.
 
 ```mermaid
 classDiagram
@@ -283,6 +380,8 @@ classDiagram
         <<interface>>
         +set_input(CellAddress, string_view) void
         +clear(CellAddress) void
+        +set_style(CellAddress, CellStyle) void
+        +set_column_width(int col, int width) void
     }
     class CellSource {
         <<interface>>
@@ -290,22 +389,66 @@ classDiagram
         +raw(CellAddress) string
         +value(CellAddress) ValuePtr
         +for_each_cell(fn) void
+        +for_each_style(fn) void
+        +column_widths() ColumnWidths
     }
     class Spreadsheet {
         -CellInputParser input_parser_
         -Sheet sheet_
         -DependencyGraph graph_
+        -StyleTable styles_
+        -ColumnWidths widths_
         -vector~CellObserver*~ observers_
+        +apply(DocumentEdit) void
+        +content(CellAddress) CellContent
+        +style(CellAddress) CellStyle
         +formula_text(CellAddress) string
         +recalculate_all() void
         +subscribe(CellObserver*) void
         +unsubscribe(CellObserver*) void
     }
+    class CellStyle {
+        +string format
+        +optional~Align~ align
+    }
+    class StyleTable {
+        -unordered_map~CellAddress, CellStyle~ styles_
+        +get(CellAddress) CellStyle
+        +set(CellAddress, CellStyle) void
+        +for_each(fn) void
+    }
+    class ColumnWidths {
+        -map~int, int~ widths_
+        +get(int col) int
+        +set(int col, int width) void
+    }
+    class CellContent {
+        +string raw
+        +CellStyle style
+    }
+    class CellChange {
+        +CellAddress address
+        +CellContent before
+        +CellContent after
+    }
+    class DocumentEdit {
+        +vector~CellChange~ cells
+        +optional~ColumnWidths~ widths_before
+        +optional~ColumnWidths~ widths_after
+        +inverse() DocumentEdit
+    }
+    StyleTable *-- CellStyle
+    CellContent *-- CellStyle
+    CellChange *-- CellContent
+    DocumentEdit *-- CellChange
+    Spreadsheet ..> DocumentEdit
     CellSink <|.. Spreadsheet
     CellSource <|.. Spreadsheet
     Spreadsheet *-- CellInputParser
     Spreadsheet *-- Sheet
     Spreadsheet *-- DependencyGraph
+    Spreadsheet *-- StyleTable
+    Spreadsheet *-- ColumnWidths
     Spreadsheet ..> Recalculator
     Spreadsheet ..> SheetEvalContext
     Spreadsheet o-- CellObserver
@@ -328,12 +471,15 @@ classDiagram
         +name() string_view
         +extensions() vector~string~
         +save(ostream, CellSource) void
+        +keeps_formulas() bool
     }
     class NativeFormat
     class CsvReader
+    class CsvWriter
     FileReader <|.. NativeFormat
     FileWriter <|.. NativeFormat
     FileReader <|.. CsvReader
+    FileWriter <|.. CsvWriter
     class FormatRegistry {
         +add_reader(shared_ptr~const FileReader~) void
         +add_writer(shared_ptr~const FileWriter~) void
@@ -348,16 +494,39 @@ classDiagram
         +format(double) string
     }
     class GeneralFormat
-    class FixedFormat
-    class PercentFormat
+    class FixedFormat {
+        -int digits_
+    }
+    class PercentFormat {
+        -int digits_
+    }
     NumberFormat <|.. GeneralFormat
-    NumberFormat <|.. FixedFormat : этап 2
-    NumberFormat <|.. PercentFormat : этап 2
+    NumberFormat <|.. FixedFormat
+    NumberFormat <|.. PercentFormat
+    class NumberFormatRegistry {
+        -map~string, Factory~ factories_
+        +add(string name, Factory) void
+        +create(string_view spec) shared_ptr~const NumberFormat~
+        +make_spec(string_view name, int digits) string
+    }
+    NumberFormatRegistry ..> NumberFormat : создаёт
 ```
 
 `EvalContext` реализует не сам `Spreadsheet`, а внутренний `SheetEvalContext`. Иначе `evaluate` был бы публичным методом таблицы, а снаружи он никому не нужен.
 
-Формату файла весь `Spreadsheet` не нужен. Читателю достаточно куда-то класть ячейки (`CellSink`), писателю — откуда-то их брать (`CellSource`).
+Формату файла весь `Spreadsheet` не нужен. Читателю достаточно куда-то класть ячейки (`CellSink`), писателю — откуда-то их брать (`CellSource`). Через них же идут стили и ширины столбцов.
+
+`CsvWriter` пишет значения, а не формулы. Поэтому у `FileWriter` есть `keeps_formulas()`: у CSV он возвращает `false`, и команда `:w файл.csv` отказывается работать и советует `:export`. Иначе формулы молча пропали бы, а файл без них стал бы текущим документом.
+
+#### Оформление
+
+Стиль ячейки (`CellStyle`) это формат чисел и выравнивание. Он лежит не в `Cell`, а в отдельной `StyleTable`. Поэтому очистка ячейки стиль не снимает, стиль бывает у пустой ячейки и не влияет на `used_range`, а пересчёт и граф про стили не знают.
+
+Формат чисел записан в стиле строкой, например `fixed:2` или `percent:1`, пустая строка значит обычный формат. Объект `NumberFormat` по этой строке создаёт `NumberFormatRegistry`. Строка, а не указатель на объект, потому что стиль сохраняется в файл и копируется вместе с ячейкой. Неизвестный формат из файла (его мог записать кто-то с другим набором форматов) показывается как обычное число и при сохранении пишется обратно как был.
+
+Выравнивание в стиле необязательное. Если его нет, числа и даты прижимаются вправо, остальное влево.
+
+`ColumnWidths` хранит только ширины, которые отличаются от обычной (10 позиций). Ширина бывает от 3 до 60.
 
 #### Пересчёт
 
@@ -367,6 +536,20 @@ classDiagram
 4. `Recalculator` считает ячейки строго по порядку. К моменту вычисления ячейки все её зависимости уже свежие, поэтому каждая считается ровно один раз, и рекурсии между ячейками нет.
 
 Диапазон `SUM(A1:A100)` записывается в граф как зависимость от каждой ячейки диапазона, даже пустой. Иначе ввод в пустую A50 не пересчитал бы сумму.
+
+#### Одна операция на все изменения
+
+Вставка строки меняет тысячи ячеек, а обратной операцией её не вернуть: после удаления строки в формулах уже стоит `#REF!`, и какая там была ссылка, неизвестно. Поэтому любая правка сначала считается как список изменений `DocumentEdit`, таблица при этом не трогается. В списке для каждой ячейки записано, что в ней было (`before`) и что станет (`after`), вместе со стилем. Применяет список один метод `Spreadsheet::apply`.
+
+Что это даёт:
+
+- отмена это `apply(edit.inverse())`, где `before` и `after` поменяны местами. Отдельная логика отмены для каждой команды не нужна;
+- пересчёт и уведомление наблюдателей идут один раз на всю правку, сколько бы ячеек в ней ни было;
+- весь ввод разбирается до первого изменения, поэтому `ParseError` и `LimitError` оставляют таблицу нетронутой.
+
+Что будет при исключении посреди `apply`. После разбора бросить может только нехватка памяти. Каждая ячейка ставится в граф и лист целиком, так что они не расходятся. Если на какой-то ячейке всё же случилось исключение, уже записанные ячейки и ширины возвращаются к `before`, и исключение летит дальше. Сам откат `noexcept`: если памяти не хватило и на него, таблица остаётся согласованной, но правка применена частично. То есть гарантия строгая для ошибок пользователя и базовая для нехватки памяти.
+
+Вставку и удаление строк и столбцов считает функция `plan_structure_edit`. Она собирает все ячейки листа (заполненные и пустые со стилем), для каждой находит новое место и переписывает формулу через `rewrite_formula`. Формулы меняются во всём листе, а не только в сдвинутых ячейках: `=A10` в первой строке после вставки строки 5 должна стать `=A11`. Вместе с ячейками переезжают стили, а при работе со столбцами ещё и ширины. Если вставка вытолкнула бы заполненную ячейку за край листа, функция бросает `LimitError`, и ничего не меняется.
 
 #### Строгая гарантия `set_input`
 
@@ -391,7 +574,9 @@ classDiagram
     class SessionView {
         <<interface>>
         +document() Spreadsheet
+        +number_formats() NumberFormatRegistry
         +cursor() CellAddress
+        +selection() optional~Range~
         +viewport() Viewport
         +mode_name() string_view
         +edits_cell() bool
@@ -402,6 +587,7 @@ classDiagram
         +edit_caret() size_t
         +formula_bar_text() string
         +help_lines() vector~string~
+        +help_scroll() int
         +dirty() bool
         +current_path() optional~path~
         +quit_requested() bool
@@ -410,18 +596,26 @@ classDiagram
     class Session {
         -unique_ptr~Spreadsheet~ document_
         -CellAddress cursor_
+        -optional~CellAddress~ selection_anchor_
+        -optional~Clipboard~ clipboard_
         -Viewport viewport_
         -LineEditor edit_line_
         -Status status_
+        -UndoStack history_
         -unique_ptr~Mode~ mode_
         -unique_ptr~Mode~ pending_mode_
         -Keymap keymap_
         -shared_ptr~bool~ alive_
         -TaskRunner tasks_
         +handle_key(string_view key) void
-        +resize(int rows, int cols) void
+        +resize(int rows, int grid_width) void
         +set_mode(unique_ptr~Mode~) void
         +apply_edit(unique_ptr~EditCommand~) void
+        +undo() bool
+        +redo() bool
+        +start_selection() void
+        +target_range() Range
+        +set_clipboard(Clipboard) void
         +replace_document(unique_ptr~Spreadsheet~, path) void
         +run_in_background(BackgroundWork) void
         +subscribe(SessionObserver*) void
@@ -433,8 +627,12 @@ classDiagram
     Session *-- Viewport
     Session *-- LineEditor
     Session *-- TaskRunner
+    Session *-- UndoStack
+    Session *-- Clipboard
     Session --> ActionRegistry
     Session --> FormatRegistry
+    Session --> NumberFormatRegistry
+    Session --> ValueParserRegistry
     Session o-- SessionObserver
 
     class Mode {
@@ -444,21 +642,25 @@ classDiagram
         +edits_cell() bool
         +shows_help() bool
         +uses_command_line() bool
+        +keeps_selection() bool
     }
     class NormalMode
     class EditMode
     class CommandMode
     class HelpMode
+    class SelectMode
     Mode <|-- NormalMode
     Mode <|-- EditMode
     Mode <|-- CommandMode
     Mode <|-- HelpMode
+    Mode <|-- SelectMode
 
     class Action {
         <<abstract>>
         +name() string_view
         +description() string_view
         +execute(Session, span~const string~ args) void
+        +keeps_selection() bool
     }
     class MoveAction
     class PageAction
@@ -466,11 +668,22 @@ classDiagram
     class GoTopAction
     class StartEditAction
     class ClearCellAction
+    class UndoAction
+    class RedoAction
+    class StartSelectionAction
+    class CopyAction
+    class PasteAction
+    class StructureAction
+    class FormatAction
+    class AlignAction
+    class ColumnWidthStepAction
+    class WidthAction
     class CommandModeAction
     class ShowHelpAction
     class SaveAction
     class OpenAction
     class ImportCsvAction
+    class ExportAction
     class QuitAction
     class ForceQuitAction
     Action <|-- MoveAction
@@ -479,11 +692,22 @@ classDiagram
     Action <|-- GoTopAction
     Action <|-- StartEditAction
     Action <|-- ClearCellAction
+    Action <|-- UndoAction
+    Action <|-- RedoAction
+    Action <|-- StartSelectionAction
+    Action <|-- CopyAction
+    Action <|-- PasteAction
+    Action <|-- StructureAction
+    Action <|-- FormatAction
+    Action <|-- AlignAction
+    Action <|-- ColumnWidthStepAction
+    Action <|-- WidthAction
     Action <|-- CommandModeAction
     Action <|-- ShowHelpAction
     Action <|-- SaveAction
     Action <|-- OpenAction
     Action <|-- ImportCsvAction
+    Action <|-- ExportAction
     Action <|-- QuitAction
     Action <|-- ForceQuitAction
 
@@ -502,6 +726,8 @@ classDiagram
     }
     NormalMode ..> Keymap
     NormalMode ..> ActionRegistry
+    SelectMode ..> Keymap
+    SelectMode ..> ActionRegistry
     CommandMode ..> ActionRegistry
 
     class EditCommand {
@@ -518,8 +744,36 @@ classDiagram
         -CellAddress address_
         -string raw_
     }
+    class ClearRangeCommand {
+        -Range range_
+    }
+    class PasteCommand {
+        -Clipboard clipboard_
+        -CellAddress target_
+    }
+    class StructureCommand {
+        -StructureEdit edit_
+    }
+    class SetStyleCommand {
+        -Range range_
+        -Change change_
+    }
+    class SetColumnWidthCommand {
+        -int first_col_
+        -int last_col_
+        -int width_
+    }
     EditCommand <|-- PlannedCommand
     PlannedCommand <|-- SetCellCommand
+    PlannedCommand <|-- ClearRangeCommand
+    PlannedCommand <|-- PasteCommand
+    PlannedCommand <|-- StructureCommand
+    PlannedCommand <|-- SetStyleCommand
+    PlannedCommand <|-- SetColumnWidthCommand
+    class Clipboard {
+        +Range source
+        +vector~Item~ items
+    }
     class UndoStack {
         -vector~EditCommand~ done_
         -vector~EditCommand~ undone_
@@ -544,16 +798,61 @@ classDiagram
         +on_session_changed() void
     }
     class CellPresenter {
-        +text(Spreadsheet, CellAddress, NumberFormat) string$
-        +align(Spreadsheet, CellAddress) Align$
+        +present(Spreadsheet, CellAddress, NumberFormatRegistry) CellView$
+    }
+    class CellView {
+        +string text
+        +Align align
+        +bool is_number
+    }
+    CellPresenter ..> CellView
+    class Viewport {
+        -int first_row_
+        -int first_col_
+        -int visible_rows_
+        -int width_
+        +resize(int rows, int width) void
+        +ensure_visible(CellAddress, ColumnWidths) void
+        +visible_cols(ColumnWidths) int
+        +contains(CellAddress, ColumnWidths) bool
     }
 ```
 
 Все изменения документа идут через `apply_edit` и `EditCommand`, даже очистка ячейки. После удачного `apply` команда кладётся в `UndoStack`, а `ctrl+z` и `ctrl+y` зовут `Session::undo` и `redo`. Стек помнит 256 правок, память под него берётся сразу, поэтому `push` не бросает. Открыли или импортировали другой документ, стек очищается: старые команды помнят ячейки старого документа. После отмены документ считается изменённым, даже если вернулись к сохранённому.
 
-Правка с отменой сделана через `PlannedCommand` (Template Method). Наследник только считает `DocumentEdit`: список ячеек с содержимым до и после. `apply` и `revert` у всех одинаковые: `Spreadsheet::apply(edit)` и `apply(edit.inverse())`. `Spreadsheet::apply` сначала разбирает весь ввод, поэтому при ошибке в формуле таблица не меняется. Пересчёт и уведомление идут один раз на всю правку. Если посреди кончится память, уже записанные ячейки возвращаются к старому содержимому.
+Правка с отменой сделана через `PlannedCommand` (Template Method). Наследник только считает `DocumentEdit` в методе `plan` и таблицу при этом не меняет. `apply` и `revert` у всех одинаковые и закрыты от переопределения (`final`): `Spreadsheet::apply(edit)` и `apply(edit.inverse())`. Повтор после отмены снова вызывает `plan`: таблица в том же состоянии, значит и правка получится та же.
 
-Оформление ячеек (`CellStyle`: формат чисел и выравнивание) лежит отдельно от содержимого, в `StyleTable`. Поэтому очистка ячейки стиль не снимает, а `used_range` и пересчёт про стили не знают.
+Команды:
+
+| Команда | Что считает её `plan` |
+|---|---|
+| `SetCellCommand` | новое содержимое одной ячейки, стиль остаётся |
+| `ClearRangeCommand` | очистку заполненных ячеек диапазона |
+| `PasteCommand` | ячейки из буфера на новом месте, формулы через `translate_formula` |
+| `StructureCommand` | вставку или удаление строк и столбцов, через `plan_structure_edit` из ядра |
+| `SetStyleCommand` | новый стиль ячеек диапазона; что поменять в стиле, говорит переданная функция |
+| `SetColumnWidthCommand` | новые ширины столбцов |
+
+#### Выделение и буфер обмена
+
+`f3` включает `SelectMode`. Выделение это диапазон от ячейки, где его начали, до курсора. В сеансе хранится только первый угол (`selection_anchor_`), второй угол это сам курсор, поэтому перемещения растягивают выделение сами.
+
+Команды не знают, есть выделение или нет. Они спрашивают у сеанса `target_range()`: это выделенный диапазон, а если выделения нет, ячейка под курсором. Поэтому `:format`, `:align`, `:width`, очистка и вставка строк работают и с одной ячейкой, и с диапазоном одним и тем же кодом.
+
+Что будет с выделением после действия, решают два флага:
+
+- `Action::keeps_selection()`. У перемещений, командной строки и клавиш ширины он `true`: после них `SelectMode` остаётся. У остальных `false`: действие работает с выделенным диапазоном, и режим возвращается в обычный. Новому действию ничего переопределять не нужно.
+- `Mode::keeps_selection()`. Он `true` у `SelectMode` и `CommandMode` (команду набирают уже при выделении). После каждой клавиши сеанс смотрит на текущий режим и, если тот выделение не держит, сам его снимает. Так ни один режим и ни одно действие не может забыть снять выделение. А если действие закончилось ошибкой, смена режима отменяется, и выделение остаётся.
+
+`Clipboard` хранит копии: исходный диапазон и содержимое заполненных ячеек со стилями. Ссылок на ячейки в нём нет, поэтому после копирования исходные ячейки можно менять и удалять, и вставка поверх части исходного диапазона работает правильно. При вставке формулы сдвигаются через `CopyMapping`. Куда попали пустые ячейки скопированного диапазона, там очищается. Если диапазон не помещается в лист, `PasteCommand` бросает `LimitError` и ничего не меняет.
+
+Копирование, вставка и очистка обходят заполненные ячейки листа, а не весь диапазон. Выделить можно и весь лист, а это 46 миллионов ячеек.
+
+#### Окно и ширина столбцов
+
+Столбцы бывают разной ширины, поэтому `Viewport` знает не число видимых столбцов, а ширину сетки в позициях экрана. Сколько столбцов в неё влезает, он считает по `ColumnWidths`: от первого видимого, пока они помещаются целиком. Столбец под курсором всегда виден целиком, а столбец шире окна рисуется обрезанным. После правки и отмены сеанс заново проверяет, что курсор виден: ширина могла измениться.
+
+Справка стала длиннее окна 80×24, поэтому она листается: сеанс хранит, с какой строки её показывать, а `HelpMode` меняет это число по стрелкам и `pageup`/`pagedown`.
 
 `Session` не подписана на `Spreadsheet` как `CellObserver`: все изменения документа и так проходят через неё. Интерфейс подписывается на `Session` через `SessionObserver` и после каждой клавиши получает сигнал «перерисуйся».
 
@@ -603,11 +902,13 @@ classDiagram
 Остальное сделано свободными функциями: у них нет состояния, и подменять их незачем.
 
 - `key_name` переводит событие FTXUI в имя клавиши. Всё незнакомое даёт `nullopt`: терминал присылает ответы на свои запросы теми же событиями, и в сеанс они попасть не должны.
-- `compute_layout` считает, сколько строк и столбцов влезает в окно.
-- `fit_cell` и `caret_window` подгоняют UTF-8 под ширину в экранных позициях, потому что байт, символ и позиция на экране это разные вещи.
+- `compute_layout` считает, сколько строк влезает в окно и сколько позиций остаётся под столбцы.
+- `fit_cell` и `caret_window` подгоняют UTF-8 под ширину в экранных позициях, потому что байт, символ и позиция на экране это разные вещи. `fit_cell` получает отдельно выравнивание и правило переполнения: текст обрезается, а число, которое не влезло, заменяется решётками при любом выравнивании.
 - `render_screen` строит экран по `SessionView` и ничего не меняет. Поэтому тесты рисуют его в память и проверяют символы по координатам, терминал им не нужен.
 
 Путь клавиши: FTXUI выдаёт событие, `key_name` делает из него строку, `TuiApp` вызывает `session.handle_key`, режим находит действие, а действие меняет сеанс. Сеанс вызывает `on_session_changed`, и рисуется новый кадр.
+
+Что показать в ячейке, решает `CellPresenter` из `ss_app`: текст по формату чисел из стиля, выравнивание и признак числа. Выделенный диапазон интерфейс берёт из `SessionView::selection()` и заливает его, а ячейку с курсором внутри выделения рисует подчёркнутой.
 
 Что рисовать, интерфейс узнаёт от режима через `edits_cell`, `shows_help` и `uses_command_line`. Сравнивать `mode_name()` со строками было бы проверкой типа в обход полиморфизма, и новый режим потребовал бы правки интерфейса. Имя режима только печатается в строке состояния.
 
@@ -615,7 +916,7 @@ classDiagram
 
 Размер окна сверяется перед каждым кадром, и `session.resize` вызывается, только если он изменился. Так одним кодом обрабатываются и первый кадр, и изменение окна.
 
-Порядок объявлений в `main` важен: реестры, `App`, `FtxuiDispatcher`, `Session`, `TuiApp`. Сеанс уничтожается раньше `App` и в деструкторе дожидается фоновых потоков, поэтому они не обратятся к уже удалённому `App`.
+Порядок объявлений в `main` важен: реестры (функции, разборщики значений, форматы файлов, форматы чисел, действия), `App`, `FtxuiDispatcher`, `Session`, `TuiApp`. Сеанс уничтожается раньше `App` и в деструкторе дожидается фоновых потоков, поэтому они не обратятся к уже удалённому `App`.
 
 Исключение, которое сеанс не обработал, нельзя пропускать сквозь цикл FTXUI, иначе терминал останется в сыром режиме. `TuiApp` запоминает его в `exception_ptr`, выходит из цикла и бросает его из `run`. Ctrl+C и Ctrl+Z перехвачены, чтобы случайное нажатие не закрыло программу с несохранённой таблицей.
 
@@ -639,7 +940,7 @@ std::runtime_error
     ├── AddressError           "A0", "ZZZ99999999"
     ├── ParseError             + position(), ошибка в формуле
     ├── FileFormatError        + line(), битый файл
-    ├── LimitError             выход за пределы листа
+    ├── LimitError             выход за пределы листа, недопустимая ширина столбца
     ├── ss::app::ConfigError   кривая клавиша в конфиге
     └── ss::app::CommandError  неизвестная команда ":xyz"
 ```
@@ -648,14 +949,51 @@ std::runtime_error
 
 ## Точки расширения
 
-Каждая из них делается новым классом и одной строкой регистрации. В `tests/core/test_extensions.cpp` и `tests/app/test_extensions.cpp` так сделаны функция `COUNT`, чтение `.tsv`, формат чисел `FixedFormat(2)` и действие `go-end`. Ни один существующий класс для них не менялся.
+Каждая из них делается новым классом и одной строкой регистрации. Все строки регистрации собраны в четырёх функциях ядра и одной в `ss_app`, а сами реестры создаются в `main`.
 
-- **Новая функция в формулах.** Наследник `Function` и строка в `register_builtins`. Парсер менять не надо.
-- **Новый тип значения.** Наследник `Value` с `as_number()`, `to_text()`, `display()` и нужными `compare_with_*`.
-- **Новый формат файла.** Наследник `FileReader` и/или `FileWriter` и строка в `register_formats`. Формат выбирается по расширению файла.
-- **Новый формат чисел** (этап 2). Наследник `NumberFormat`.
-- **Новое действие.** Наследник `Action` и строка в `register_actions`. Оно сразу доступно из командной строки и конфига клавиш и само попадает в справку.
-- **Новая операция с отменой.** Наследник `PlannedCommand` с одним методом `plan` и `Action`, который его запускает.
+В `tests/core/test_extensions.cpp` и `tests/app/test_extensions.cpp` так сделано по одному расширению на каждую точку: функции `COUNT` и `ROUND`, логический тип `BoolValue`, чтение и запись `.tsv`, формат чисел `ScientificFormat`, действие `go-end` и команда с отменой `SwapCellsCommand`. Ни один существующий класс для них не менялся.
+
+### Новая функция в формулах
+
+1. Класс-наследник `Function` в `core/src/builtins/`: `name()` и `call(args, context)`. Аргументы приходят невычисленными, их считают через `context.evaluate` (одно значение) или `context.evaluate_flat` (диапазон разворачивается). Ошибки возвращаются значением.
+2. Строка в `register_builtins`: `registry.add("ROUND", [] { return std::make_shared<RoundFunction>(); });`
+3. Два файла в `core/CMakeLists.txt`.
+
+Парсер и `Evaluator` не меняются: парсер спрашивает имя у `FunctionProvider`.
+
+### Новый тип значения
+
+1. Класс-наследник `Value`: `as_number()`, `to_text()`, `display()`, `compare()` и те `compare_with_*`, с чем он сравнивается. Если у типа своя арифметика, ещё `plus` и `minus`.
+2. Чтобы значение можно было ввести в ячейку: класс-наследник `ValueParser` с одним методом `parse` и строка в `register_value_parsers`: `registry.add(std::make_shared<const BoolParser>());`
+3. Если значение получается из формулы, то функция, которая его возвращает (как `DATE`).
+
+`CellInputParser`, `Evaluator` и остальные значения не меняются.
+
+### Новый формат файла
+
+1. Класс-наследник `FileReader` и/или `FileWriter` в `core/src/io/`: `name()`, `extensions()` и `load(in, sink)` либо `save(out, source)`. Если формат не хранит формулы, `keeps_formulas()` возвращает `false`, тогда в него можно только экспортировать.
+2. Строка в `register_formats`: `registry.add_writer(std::make_shared<const TsvWriter>());`
+
+Формат выбирается по расширению файла. Команды `:e`, `:w`, `:import` и `:export` не меняются.
+
+### Новый формат чисел
+
+1. Класс-наследник `NumberFormat` в `core/number_format.hpp` с одним методом `format(double)`.
+2. Строка в `register_number_formats`: `registry.add("sci", [](int digits) { return std::make_shared<const ScientificFormat>(digits); });`
+
+После этого работает `:format sci 3`, формат сохраняется в файл как `sci:3` и читается обратно. Команда `format`, `CellPresenter` и `NativeFormat` не меняются.
+
+### Новая операция редактирования с отменой
+
+1. Класс-наследник `PlannedCommand` с одним методом `plan(document)`. Он возвращает `DocumentEdit` и таблицу не меняет. Применение, отмену и повтор даёт базовый класс.
+2. Класс-наследник `Action`, который создаёт команду и отдаёт её в `session.apply_edit`. С какими ячейками работать, он узнаёт из `session.target_range()`.
+3. Строка в `register_actions`: `registry.add("swap-right", [] { return std::make_unique<SwapRightAction>(); });`
+
+`UndoStack`, `Session` и `Spreadsheet` не меняются.
+
+### Новое действие
+
+Наследник `Action` и строка в `register_actions`. Оно сразу доступно из командной строки и конфига клавиш и само попадает в справку. Клавишу по умолчанию добавляют в `Keymap::defaults()` и в `config/keys.conf`.
 
 ## Паттерны
 
@@ -667,15 +1005,15 @@ std::runtime_error
 
 ### Visitor — операции над деревом формулы
 
-С деревом нужно делать разные вещи: считать, печатать, искать ссылки, а на втором этапе ещё сдвигать ссылки. Если сделать для этого методы в каждом узле, то при каждой новой операции придётся менять все классы узлов. С посетителем новая операция — это просто новый класс.
+С деревом нужно делать разные вещи: считать (`Evaluator`), печатать (`FormulaPrinter`), искать ссылки (`RefCollector`) и сдвигать ссылки (`RefShifter`). Если сделать для этого методы в каждом узле, то при каждой новой операции придётся менять все классы узлов. С посетителем новая операция — это просто новый класс. Так и вышло: `RefShifter` появился позже остальных, и ни один узел для него не менялся.
 
-Минус в том, что при добавлении нового вида узла придётся менять всех посетителей. Но виды узлов почти не меняются, а новые функции добавляются через `Function`, так что это не проблема.
+Минус в том, что при добавлении нового вида узла придётся менять всех посетителей. Это случилось один раз: для `#REF!` в формуле понадобился узел `ErrorLit`, и метод `visit(const ErrorLit&)` пришлось дописать во все четыре посетителя. Но виды узлов меняются редко, а операций над деревом больше, чем узлов, и новые функции добавляются через `Function`, а не новым узлом.
 
 ### Фабрика — FunctionRegistry
 
 Парсеру нужно создать функцию по её имени из формулы. Можно было написать `if (name == "SUM") ... else if ...`, но тогда для каждой новой функции пришлось бы менять парсер. Вместо этого есть реестр, где по имени лежит функция, создающая нужный объект.
 
-`ActionRegistry` и `FormatRegistry` устроены так же: первый создаёт действие по имени из конфига или командной строки, второй выбирает формат по расширению файла.
+`ActionRegistry`, `FormatRegistry` и `NumberFormatRegistry` устроены так же: первый создаёт действие по имени из конфига или командной строки, второй выбирает формат по расширению файла, третий создаёт формат чисел по строке из стиля ячейки (`fixed:2`).
 
 ### Observer — уведомления об изменениях
 
@@ -689,19 +1027,35 @@ std::runtime_error
 
 Правки документа (`EditCommand`) — тоже команды: каждая умеет и выполниться, и откатиться. На этом работает отмена через `UndoStack`. Сохранять перед каждым изменением копию всей таблицы заняло бы слишком много памяти, а команда помнит только тронутые ячейки.
 
+Сначала я хотел, чтобы каждая команда сама писала обратную операцию: для ввода вернуть старый текст, для вставки строки удалить её. Но удаление строки так не вернуть: в формулах на её месте уже `#REF!`. Поэтому команда запоминает `DocumentEdit` с содержимым ячеек до и после, а отмена это тот же `apply` с перевёрнутой правкой.
+
+### Template Method — PlannedCommand
+
+У всех правок с отменой одинаковый порядок: посчитать изменения, применить их, запомнить для отмены. Отличается только первый шаг. Если бы каждая команда писала `apply` и `revert` сама, в каждой повторялись бы запоминание правки и её переворот, и в какой-нибудь это было бы сделано с ошибкой (например, запомнить правку до того, как `apply` удался).
+
+Поэтому `PlannedCommand` задаёт порядок в `apply` и `revert`, которые нельзя переопределить, а наследник пишет только `plan`. Новая операция с отменой это один метод.
+
+Чем это отличается от Command. Command это сам объект-правка, который можно положить в стек и выполнить позже (`EditCommand`, его видят `Session` и `UndoStack`). Template Method это способ написать такие объекты без повторов: общий алгоритм в базовом классе, один шаг в наследнике.
+
+Вместо наследования можно было передавать в команду функцию `plan` (Strategy). Но тогда у команды был бы один класс на все случаи, а данные команды (адрес, диапазон, буфер) пришлось бы прятать в замыкании.
+
 ### State — режимы
 
-В программе есть несколько режимов: обычный, редактирование ячейки, ввод команды и справка. В каждом режиме клавиши работают по-своему. Если делать это через `switch` по режиму, одна функция получится огромной. Поэтому каждый режим — отдельный класс.
+В программе есть несколько режимов: обычный, редактирование ячейки, ввод команды, справка и выделение. В каждом режиме клавиши работают по-своему. Если делать это через `switch` по режиму, одна функция получится огромной. Поэтому каждый режим — отдельный класс. Режим выделения добавился пятым классом `SelectMode`, остальные режимы для него не менялись.
 
-### Strategy — форматы файлов и чисел
+### Strategy — форматы файлов и чисел, правило сдвига ссылок
 
 Таблицу можно читать и сохранять в разных форматах. Каждый формат — отдельный класс с интерфейсом `FileReader` или `FileWriter`. Иначе пришлось бы писать методы `saveCsv`, `loadCsv` и т.д. прямо в `Spreadsheet`.
 
-На втором этапе форматы чисел (`NumberFormat`) будут устроены так же, `FixedFormat` уже показан в тестах.
+Форматы чисел (`NumberFormat`) устроены так же: `GeneralFormat`, `FixedFormat` и `PercentFormat` это три способа напечатать одно и то же число, а значение просто вызывает `format`. Без этого в `NumberValue::display` стоял бы `switch` по виду формата.
+
+`RefMapping` это тоже стратегия. `RefShifter` обходит дерево, а что станет с каждой ссылкой, решает `CopyMapping` или `StructureMapping`. Можно было сделать два посетителя, для копирования и для вставки строк, но обход дерева в них совпадал бы строка в строку.
+
+И `ValueParser`: каждый разборщик это свой способ узнать значение во введённом тексте.
 
 ### Facade — Spreadsheet
 
-Чтобы записать значение в ячейку, нужно разобрать формулу, обновить граф, пересчитать ячейки и сообщить подписчикам. Всё это делает `Spreadsheet`, а `ss_app` вызывает только `set_input`. Так проще следить, чтобы при ошибке таблица не испортилась.
+Чтобы записать значение в ячейку, нужно разобрать формулу, обновить граф, пересчитать ячейки и сообщить подписчикам. Всё это делает `Spreadsheet`, а `ss_app` вызывает только `set_input` или `apply`. Так проще следить, чтобы при ошибке таблица не испортилась.
 
 ### Другие
 
@@ -725,7 +1079,7 @@ std::runtime_error
 | нет | `CellInputParser`, `Recalculator` | вынесены из `Spreadsheet` (SRP) |
 | `affectedInOrder` и `cycleThrough` | один `plan(changed)` с `order` и `cyclic` | один обход графа вместо двух |
 | `Action::execute(Session)` | `execute(Session&, span<const string> args)` | командам `:w файл`, `:e файл` нужны аргументы |
-| `EditCommand` только на этапе 2 | уже сейчас, через `SetCellCommand` | все правки сразу идут через команды, и undo потом не потребует переделок (OCP) |
+| `EditCommand` только на этапе 2 | с самого начала, через `SetCellCommand` | все правки сразу шли через команды, и для отмены понадобились только `UndoStack` и два действия (OCP) |
 | `Session` подписана на `Spreadsheet` | не подписана | все изменения документа и так идут через `Session` |
 | `Keymap::load(path)` | `load(path, known_actions)` | неизвестное действие в конфиге видно сразу, с номером строки |
 | нет | `MainThreadDispatcher`, `SessionView`, `CellPresenter`, `LineEditor` | `ss_app` не зависит от FTXUI (DIP), в TUI не остаётся логики |
@@ -734,3 +1088,15 @@ std::runtime_error
 | `screen.Post` | `App::Post` | в FTXUI 7 `ScreenInteractive` переименован в `App` |
 | перерисовка сама после `Post` | `on_session_changed` отправляет `Event::Custom` | `Post` с функцией не обновляет кадр |
 | интерфейс знает только `mode_name()` | ещё `edits_cell`, `shows_help`, `uses_command_line` | иначе пришлось бы сравнивать имена режимов |
+| отмена через обратные операции | `DocumentEdit` и `inverse()` | удаление строки нельзя вернуть без сохранённого содержимого |
+| каждая команда пишет `apply` и `revert` | `PlannedCommand` с одним `plan` | порядок «посчитать, применить, запомнить» у всех одинаковый |
+| формат чисел передаётся в `render_screen` | формат записан в стиле ячейки, создаёт его `NumberFormatRegistry` | у каждой ячейки свой формат, и он сохраняется в файл |
+| `Align` в `ss_app` | `Align` в `ss_core`, добавлен `Center` | выравнивание это часть стиля, а стиль часть документа |
+| `CellPresenter::text` и `align` | один `present`, возвращает `CellView` | интерфейсу нужен ещё признак числа: решётки зависят от него, а не от выравнивания |
+| число читается прямо в `CellInputParser` | `ValueParser` и `ValueParserRegistry` | дата и любой новый тип добавляются без правки `CellInputParser` (OCP) |
+| `Evaluator` считает только числа | сначала спрашивает `Value::plus` и `minus` | дата минус дата без проверки типов в `Evaluator` |
+| ссылка за листом считается в `#REF!` | ещё узел `ErrorLit` | у ссылки на удалённую ячейку адреса уже нет, а формула должна сохраняться в файл |
+| `Viewport` считает столбцы штуками | знает ширину сетки в позициях | столбцы стали разной ширины |
+| файл `SST 1` | `SST 2` со строками `!style` и `!width`, `SST 1` по-прежнему читается | оформление должно переживать сохранение |
+| CSV только читается | ещё `CsvWriter` и `FileWriter::keeps_formulas()` | экспорт значений; сохранить документ в CSV нельзя, формулы пропали бы |
+| справка помещается в окно | листается стрелками | действий стало больше, чем строк в окне 80×24 |

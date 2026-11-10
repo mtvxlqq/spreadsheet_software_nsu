@@ -46,8 +46,8 @@ std::optional<std::array<std::string_view, 3>> split_in_three(std::string_view t
                       text.substr(second + 1)};
 }
 
-const Date first_date = std::chrono::sys_days(std::chrono::year(min_year) / 1 / 1);
-const Date last_date = std::chrono::sys_days(std::chrono::year(max_year) / 12 / 31);
+constexpr Date first_date = std::chrono::sys_days(std::chrono::year(min_year) / 1 / 1);
+constexpr Date last_date = std::chrono::sys_days(std::chrono::year(max_year) / 12 / 31);
 
 }  // namespace
 

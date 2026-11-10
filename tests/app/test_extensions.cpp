@@ -1,5 +1,6 @@
-// Учебное расширение app: действие go-end. Новый класс, строка
-// регистрации и клавиша в конфиге, существующий код не менялся (OCP).
+// Учебные расширения app: действие go-end и правка с отменой swap-right.
+// Новый класс, строка регистрации и клавиша в конфиге, существующий код
+// не менялся (OCP).
 
 #include <memory>
 #include <optional>
@@ -14,10 +15,12 @@
 #include "app/action_registry.hpp"
 #include "app/errors.hpp"
 #include "app/keymap.hpp"
+#include "app/planned_command.hpp"
 #include "app/register_actions.hpp"
 #include "app/session.hpp"
 #include "core/address.hpp"
 #include "core/builtins.hpp"
+#include "core/document_edit.hpp"
 #include "core/function_registry.hpp"
 #include "core/io/format_registry.hpp"
 #include "core/io/register_formats.hpp"
@@ -36,7 +39,7 @@ CellAddress at(std::string_view text) {
     return CellAddress::parse(text);
 }
 
-// 3. к последней заполненной строке, столбец не меняется
+// 1. к последней заполненной строке, столбец не меняется
 class GoEndAction final : public ss::app::Action {
 public:
     std::string_view name() const override {
@@ -59,9 +62,48 @@ public:
     }
 };
 
+// 2. Новая операция с отменой: поменять две ячейки местами вместе
+// с оформлением. От PlannedCommand нужен только plan, отмену и повтор
+// даёт базовый класс.
+class SwapCellsCommand final : public ss::app::PlannedCommand {
+public:
+    SwapCellsCommand(CellAddress first, CellAddress second) : first_(first), second_(second) {}
+
+private:
+    ss::core::DocumentEdit plan(const ss::core::Spreadsheet& document) const override {
+        const ss::core::CellContent first = document.content(first_);
+        const ss::core::CellContent second = document.content(second_);
+        ss::core::DocumentEdit edit;
+        edit.cells.push_back({.address = first_, .before = first, .after = second});
+        edit.cells.push_back({.address = second_, .before = second, .after = first});
+        return edit;
+    }
+
+    CellAddress first_;
+    CellAddress second_;
+};
+
+// действие, которое запускает команду: ячейка под курсором меняется с правой
+class SwapRightAction final : public ss::app::Action {
+public:
+    std::string_view name() const override {
+        return "swap-right";
+    }
+
+    std::string_view description() const override {
+        return "поменять ячейку местами с правой";
+    }
+
+    void execute(Session& session, std::span<const std::string> /*args*/) const override {
+        const CellAddress here = session.cursor();
+        session.apply_edit(std::make_unique<SwapCellsCommand>(
+            here, CellAddress{.row = here.row, .col = here.col + 1}));
+    }
+};
+
 ss::app::Keymap keymap_with_go_end(const ss::app::ActionRegistry& actions) {
-    // так же, как строка в ~/.config/spreadsheet/keys.conf
-    std::istringstream config("ctrl+end = go-end\n");
+    // так же, как строки в ~/.config/spreadsheet/keys.conf
+    std::istringstream config("ctrl+end = go-end\nf9 = swap-right\n");
     ss::app::KeymapLoadResult result = ss::app::Keymap::load(config, actions.names());
     EXPECT_TRUE(result.warnings.empty());
     return std::move(result.keymap);
@@ -77,6 +119,7 @@ protected:
         ss::app::register_actions(actions);
         // та самая одна строка регистрации
         actions.add("go-end", [] { return std::make_unique<GoEndAction>(); });
+        actions.add("swap-right", [] { return std::make_unique<SwapRightAction>(); });
         session = std::make_unique<Session>(functions, value_parsers, formats, number_formats, actions,
                                             keymap_with_go_end(actions), dispatcher);
     }
@@ -130,4 +173,47 @@ TEST_F(GoEndTest, WorksFromCommandLineAndHelp) {
         found = found || line == "go-end [ctrl+end]: к последней заполненной строке";
     }
     EXPECT_TRUE(found);
+}
+
+TEST_F(GoEndTest, SwapCommandIsUndoneLikeBuiltinOnes) {
+    session->set_cursor(at("A1"));
+    session->handle_key("1");
+    session->handle_key("tab");
+    for (const char* key : {"=", "A", "1", "*", "2", "enter"}) {
+        session->handle_key(key);
+    }
+    // у A1 своё оформление, оно тоже должно переехать
+    session->set_cursor(at("A1"));
+    for (const char* key : {":", "a", "l", "i", "g", "n", " ", "c", "e", "n", "t", "e", "r", "enter"}) {
+        session->handle_key(key);
+    }
+
+    session->handle_key("f9");
+    const ss::core::Spreadsheet& document = session->document();
+    EXPECT_EQ(document.raw(at("A1")), "=A1*2");
+    EXPECT_EQ(document.raw(at("B1")), "1");
+    EXPECT_EQ(document.style(at("B1")).align, ss::core::Align::Center);
+    EXPECT_EQ(document.style(at("A1")), ss::core::CellStyle{});
+    // формула теперь ссылается сама на себя
+    EXPECT_EQ(document.value(at("A1"))->to_text(), "#CYCLE!");
+
+    session->handle_key("ctrl+z");
+    EXPECT_EQ(document.raw(at("A1")), "1");
+    EXPECT_EQ(document.raw(at("B1")), "=A1*2");
+    EXPECT_EQ(document.style(at("A1")).align, ss::core::Align::Center);
+    EXPECT_EQ(document.value(at("B1"))->to_text(), "2");
+
+    session->handle_key("ctrl+y");
+    EXPECT_EQ(document.raw(at("B1")), "1");
+}
+
+// у правого края листа соседа нет: ошибка в статусе, документ цел
+TEST_F(GoEndTest, SwapAtSheetEdgeChangesNothing) {
+    session->set_cursor(at("ZZ1"));
+    session->handle_key("7");
+    session->handle_key("enter");
+    session->set_cursor(at("ZZ1"));
+    session->handle_key("f9");
+    EXPECT_EQ(session->status().kind, ss::app::Status::Kind::Error);
+    EXPECT_EQ(session->document().raw(at("ZZ1")), "7");
 }
