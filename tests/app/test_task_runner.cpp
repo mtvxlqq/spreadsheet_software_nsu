@@ -147,8 +147,8 @@ protected:
         dir = fs::temp_directory_path() / ("ss_background_" + test_name);
         fs::remove_all(dir);
         fs::create_directories(dir);
-        session = std::make_unique<Session>(functions, value_parsers, formats, number_formats, actions,
-                                            ss::app::Keymap::defaults(), dispatcher);
+        session = std::make_unique<Session>(functions, value_parsers, formats, number_formats,
+                                            actions, ss::app::Keymap::defaults(), dispatcher);
     }
 
     ~BackgroundLoadTest() override {

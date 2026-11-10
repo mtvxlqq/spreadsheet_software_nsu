@@ -19,7 +19,8 @@ public:
 
     // nullopt значит, что ссылки больше нет и в формуле будет #REF!
     virtual std::optional<CellRef> map_ref(CellRef ref) const = 0;
-    virtual std::optional<std::pair<CellRef, CellRef>> map_range(CellRef from, CellRef to) const = 0;
+    virtual std::optional<std::pair<CellRef, CellRef>> map_range(CellRef from,
+                                                                 CellRef to) const = 0;
 
 protected:
     RefMapping() = default;

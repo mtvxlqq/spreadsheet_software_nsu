@@ -33,13 +33,14 @@ std::optional<int> read_part(std::string_view text, std::size_t min_length,
 
 // ровно три куска через separator, иначе nullopt
 std::optional<std::array<std::string_view, 3>> split_in_three(std::string_view text,
-                                                               char separator) {
+                                                              char separator) {
     const std::size_t first = text.find(separator);
     if (first == std::string_view::npos) {
         return std::nullopt;
     }
     const std::size_t second = text.find(separator, first + 1);
-    if (second == std::string_view::npos || text.find(separator, second + 1) != std::string_view::npos) {
+    if (second == std::string_view::npos ||
+        text.find(separator, second + 1) != std::string_view::npos) {
         return std::nullopt;
     }
     return std::array{text.substr(0, first), text.substr(first + 1, second - first - 1),

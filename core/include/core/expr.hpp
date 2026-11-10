@@ -30,7 +30,7 @@ public:
     Expr& operator=(Expr&&) = delete;
 
     virtual void accept(ExprVisitor& visitor) const = 0;
-    // глубокая копия, понадобится на втором этапе при копировании ячеек
+    // глубокая копия; ей пользуется RefShifter, когда узел не меняется
     virtual ExprPtr clone() const = 0;
 
 protected:

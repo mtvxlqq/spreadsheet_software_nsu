@@ -236,8 +236,8 @@ void NativeFormat::save(std::ostream& out, const CellSource& source) const {
         out << address.to_string() << '\t' << escape(source.raw(address)) << '\n';
     });
     source.for_each_style([&](CellAddress address, const CellStyle& style) {
-        const std::string format = style.format.empty() ? std::string(general_name)
-                                                        : escape(style.format);
+        const std::string format =
+            style.format.empty() ? std::string(general_name) : escape(style.format);
         out << style_mark << '\t' << address.to_string() << '\t' << format << '\t'
             << align_name(style.align) << '\n';
     });

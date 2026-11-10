@@ -148,7 +148,8 @@ TEST_F(DocumentTest, PresenterShowsUnknownFormatAsGeneral) {
     ss::core::CellContent after = document.content(at("A1"));
     after.style.format = "money:2";
     ss::core::DocumentEdit edit;
-    edit.cells.push_back({.address = at("A1"), .before = document.content(at("A1")), .after = after});
+    edit.cells.push_back(
+        {.address = at("A1"), .before = document.content(at("A1")), .after = after});
     document.apply(edit);
     EXPECT_EQ(present("A1").text, "0.5");
     EXPECT_EQ(document.style(at("A1")).format, "money:2");

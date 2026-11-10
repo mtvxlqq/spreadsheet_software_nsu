@@ -120,8 +120,8 @@ protected:
         // та самая одна строка регистрации
         actions.add("go-end", [] { return std::make_unique<GoEndAction>(); });
         actions.add("swap-right", [] { return std::make_unique<SwapRightAction>(); });
-        session = std::make_unique<Session>(functions, value_parsers, formats, number_formats, actions,
-                                            keymap_with_go_end(actions), dispatcher);
+        session = std::make_unique<Session>(functions, value_parsers, formats, number_formats,
+                                            actions, keymap_with_go_end(actions), dispatcher);
     }
 
     ss::core::FunctionRegistry functions;
@@ -184,7 +184,8 @@ TEST_F(GoEndTest, SwapCommandIsUndoneLikeBuiltinOnes) {
     }
     // у A1 своё оформление, оно тоже должно переехать
     session->set_cursor(at("A1"));
-    for (const char* key : {":", "a", "l", "i", "g", "n", " ", "c", "e", "n", "t", "e", "r", "enter"}) {
+    for (const char* key :
+         {":", "a", "l", "i", "g", "n", " ", "c", "e", "n", "t", "e", "r", "enter"}) {
         session->handle_key(key);
     }
 

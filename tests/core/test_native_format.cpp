@@ -167,7 +167,7 @@ TEST_F(NativeFormatTest, BrokenEscapeFile) {
 
 TEST_F(NativeFormatTest, BrokenFilesReportTheirLine) {
     EXPECT_EQ(error_line(""), 1U);
-    EXPECT_EQ(error_line("SST 99\n"), 1U);                 // версия из будущего
+    EXPECT_EQ(error_line("SST 99\n"), 1U);  // версия из будущего
     EXPECT_EQ(error_line("SST 3\n"), 1U);
     EXPECT_EQ(error_line("sst 1\n"), 1U);
     EXPECT_EQ(error_line("SST 1\nA1 42\n"), 2U);           // пробел вместо таба
@@ -200,14 +200,15 @@ TEST_F(NativeFormatTest, SavesStylesAndWidthsAfterCells) {
     sheet.set_style(at("C3"), {.format = "percent:0", .align = std::nullopt});
     sheet.set_column_width(1, 15);
     sheet.set_column_width(27, 4);
-    EXPECT_EQ(save(sheet), "SST 2\n"
-                           "A1\t42\n"
-                           "B2\ttext\n"
-                           "!style\tA1\tfixed:2\tright\n"
-                           "!style\tB2\tgeneral\tcenter\n"
-                           "!style\tC3\tpercent:0\tauto\n"
-                           "!width\tB\t15\n"
-                           "!width\tAB\t4\n");
+    EXPECT_EQ(save(sheet),
+              "SST 2\n"
+              "A1\t42\n"
+              "B2\ttext\n"
+              "!style\tA1\tfixed:2\tright\n"
+              "!style\tB2\tgeneral\tcenter\n"
+              "!style\tC3\tpercent:0\tauto\n"
+              "!width\tB\t15\n"
+              "!width\tAB\t4\n");
 }
 
 TEST_F(NativeFormatTest, RoundTripKeepsStylesAndWidths) {
@@ -281,26 +282,26 @@ TEST_F(NativeFormatTest, StyleLinesMayComeBeforeCells) {
 }
 
 TEST_F(NativeFormatTest, BrokenStyleLinesReportTheirLine) {
-    EXPECT_EQ(error_line("SST 2\nA1\t1\n!style\tA1\tfixed:2\n"), 3U);             // нет выравнивания
-    EXPECT_EQ(error_line("SST 2\n!style\tA1\tfixed:2\tright\textra\n"), 2U);      // лишнее поле
-    EXPECT_EQ(error_line("SST 2\n!style\tA0\tfixed:2\tright\n"), 2U);             // кривой адрес
-    EXPECT_EQ(error_line("SST 2\n!style\tAAA1\tfixed:2\tright\n"), 2U);           // вне листа
-    EXPECT_EQ(error_line("SST 2\n!style\tA1\tfixed:2\tmiddle\n"), 2U);            // такого выравнивания нет
-    EXPECT_EQ(error_line("SST 2\n!style\tA1\tfixed\\x\tright\n"), 2U);           // битый escape
-    EXPECT_EQ(error_line("SST 2\n!style A1 fixed:2 right\n"), 2U);                 // пробелы вместо табов
-    EXPECT_EQ(error_line("SST 2\n\n!color\tA1\tred\n"), 3U);                       // неизвестная строка
+    EXPECT_EQ(error_line("SST 2\nA1\t1\n!style\tA1\tfixed:2\n"), 3U);         // нет выравнивания
+    EXPECT_EQ(error_line("SST 2\n!style\tA1\tfixed:2\tright\textra\n"), 2U);  // лишнее поле
+    EXPECT_EQ(error_line("SST 2\n!style\tA0\tfixed:2\tright\n"), 2U);         // кривой адрес
+    EXPECT_EQ(error_line("SST 2\n!style\tAAA1\tfixed:2\tright\n"), 2U);       // вне листа
+    EXPECT_EQ(error_line("SST 2\n!style\tA1\tfixed:2\tmiddle\n"), 2U);  // такого выравнивания нет
+    EXPECT_EQ(error_line("SST 2\n!style\tA1\tfixed\\x\tright\n"), 2U);  // битый escape
+    EXPECT_EQ(error_line("SST 2\n!style A1 fixed:2 right\n"), 2U);      // пробелы вместо табов
+    EXPECT_EQ(error_line("SST 2\n\n!color\tA1\tred\n"), 3U);            // неизвестная строка
 }
 
 TEST_F(NativeFormatTest, BrokenWidthLinesReportTheirLine) {
-    EXPECT_EQ(error_line("SST 2\n!width\tB\n"), 2U);            // нет ширины
-    EXPECT_EQ(error_line("SST 2\n!width\tB\t15\t3\n"), 2U);    // лишнее поле
-    EXPECT_EQ(error_line("SST 2\n!width\tB\twide\n"), 2U);     // не число
+    EXPECT_EQ(error_line("SST 2\n!width\tB\n"), 2U);         // нет ширины
+    EXPECT_EQ(error_line("SST 2\n!width\tB\t15\t3\n"), 2U);  // лишнее поле
+    EXPECT_EQ(error_line("SST 2\n!width\tB\twide\n"), 2U);   // не число
     EXPECT_EQ(error_line("SST 2\n!width\tB\t15.5\n"), 2U);
-    EXPECT_EQ(error_line("SST 2\n!width\tB\t2\n"), 2U);        // меньше минимума
-    EXPECT_EQ(error_line("SST 2\n!width\tB\t61\n"), 2U);       // больше максимума
-    EXPECT_EQ(error_line("SST 2\n!width\tB1\t15\n"), 2U);      // адрес вместо столбца
-    EXPECT_EQ(error_line("SST 2\n!width\t\t15\n"), 2U);        // пустое имя столбца
-    EXPECT_EQ(error_line("SST 2\n!width\tAAA\t15\n"), 2U);     // столбец вне листа
+    EXPECT_EQ(error_line("SST 2\n!width\tB\t2\n"), 2U);     // меньше минимума
+    EXPECT_EQ(error_line("SST 2\n!width\tB\t61\n"), 2U);    // больше максимума
+    EXPECT_EQ(error_line("SST 2\n!width\tB1\t15\n"), 2U);   // адрес вместо столбца
+    EXPECT_EQ(error_line("SST 2\n!width\t\t15\n"), 2U);     // пустое имя столбца
+    EXPECT_EQ(error_line("SST 2\n!width\tAAA\t15\n"), 2U);  // столбец вне листа
     EXPECT_EQ(error_line("SST 2\nA1\t1\n!width\tB\t15\n"), 0U);
 }
 

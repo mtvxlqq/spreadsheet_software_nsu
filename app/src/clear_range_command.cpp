@@ -12,8 +12,9 @@ ss::core::DocumentEdit ClearRangeCommand::plan(const ss::core::Spreadsheet& docu
     document.for_each_cell([&](ss::core::CellAddress address) {
         if (range_.contains(address)) {
             const ss::core::CellContent before = document.content(address);
-            edit.cells.push_back(
-                {.address = address, .before = before, .after = {.raw = "", .style = before.style}});
+            edit.cells.push_back({.address = address,
+                                  .before = before,
+                                  .after = {.raw = "", .style = before.style}});
         }
     });
     return edit;

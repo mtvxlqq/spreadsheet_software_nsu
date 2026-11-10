@@ -32,14 +32,14 @@ void add_page(ActionRegistry& registry, const std::string& name, const std::stri
 void add_structure(ActionRegistry& registry, const std::string& name,
                    const std::string& description, ss::core::StructureEdit::Kind kind,
                    ss::core::Axis axis) {
-    registry.add(
-        name, [=] { return std::make_unique<StructureAction>(name, description, kind, axis); });
+    registry.add(name,
+                 [=] { return std::make_unique<StructureAction>(name, description, kind, axis); });
 }
 
 void add_width_step(ActionRegistry& registry, const std::string& name,
                     const std::string& description, int delta) {
-    registry.add(
-        name, [=] { return std::make_unique<ColumnWidthStepAction>(name, description, delta); });
+    registry.add(name,
+                 [=] { return std::make_unique<ColumnWidthStepAction>(name, description, delta); });
 }
 
 }  // namespace

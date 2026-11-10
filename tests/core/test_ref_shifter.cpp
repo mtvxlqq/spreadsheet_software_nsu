@@ -36,13 +36,15 @@ protected:
 
     // номера строк и столбцов тут с нуля, как в CellAddress
     std::string rows(std::string_view raw, Kind kind, int at, int count = 1) {
-        return rewrite_formula(raw, functions,
-                               StructureMapping({.kind = kind, .axis = Axis::Row, .at = at, .count = count}));
+        return rewrite_formula(
+            raw, functions,
+            StructureMapping({.kind = kind, .axis = Axis::Row, .at = at, .count = count}));
     }
 
     std::string cols(std::string_view raw, Kind kind, int at, int count = 1) {
-        return rewrite_formula(raw, functions,
-                               StructureMapping({.kind = kind, .axis = Axis::Column, .at = at, .count = count}));
+        return rewrite_formula(
+            raw, functions,
+            StructureMapping({.kind = kind, .axis = Axis::Column, .at = at, .count = count}));
     }
 };
 

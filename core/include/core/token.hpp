@@ -8,9 +8,9 @@ namespace ss::core {
 enum class TokenType {
     Number,  // 12, 3.5, .5, 1e-3
     String,
-    Ref,    // A1, $B$2
+    Ref,       // A1, $B$2
     RefError,  // #REF!
-    Ident,  // имя функции
+    Ident,     // имя функции
     Plus,
     Minus,
     Star,

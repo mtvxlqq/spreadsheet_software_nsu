@@ -19,7 +19,8 @@ namespace ss::app {
 // можно звать из фонового потока.
 std::unique_ptr<ss::core::Spreadsheet> load_document(
     const std::filesystem::path& path, const ss::core::FileReader& reader,
-    const ss::core::FunctionProvider& functions, const ss::core::ValueParserRegistry& value_parsers);
+    const ss::core::FunctionProvider& functions,
+    const ss::core::ValueParserRegistry& value_parsers);
 
 // Пишет сначала во временный файл рядом и потом переименовывает его.
 // Если запись упала на середине, старый файл останется целым.

@@ -48,10 +48,11 @@ TEST(KeymapTest, Defaults) {
 TEST(KeymapTest, DefaultsUseOnlyKnownActions) {
     const Keymap keymap = Keymap::defaults();
     const std::vector<std::string> actions = known_actions();
-    for (const char* key : {"up", "down", "left", "right", "h", "j", "k", "l", "pageup",
-                            "pagedown", "home", "ctrl+home", "enter", "f2", "delete", ":", "?",
-                            "f1", "ctrl+s", "ctrl+q", "ctrl+z", "ctrl+y", ">", "<", "f3",
-                            "ctrl+c", "ctrl+v", "f5", "f6", "f7", "f8"}) {
+    for (const char* key :
+         {"up",     "down",     "left",   "right",     "h",      "j",      "k",      "l",
+          "pageup", "pagedown", "home",   "ctrl+home", "enter",  "f2",     "delete", ":",
+          "?",      "f1",       "ctrl+s", "ctrl+q",    "ctrl+z", "ctrl+y", ">",      "<",
+          "f3",     "ctrl+c",   "ctrl+v", "f5",        "f6",     "f7",     "f8"}) {
         const std::optional<std::string> action = keymap.action_for(key);
         ASSERT_TRUE(action.has_value()) << key;
         EXPECT_NE(std::ranges::find(actions, *action), actions.end()) << key;

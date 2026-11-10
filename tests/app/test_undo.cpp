@@ -157,7 +157,8 @@ TEST_F(UndoStackTest, UndoRecalculatesDependents) {
 TEST_F(UndoStackTest, UndoKeepsStyleOfCell) {
     const ss::core::CellStyle style{.format = "fixed:2", .align = ss::core::Align::Right};
     ss::core::DocumentEdit styled;
-    styled.cells.push_back({.address = at("A1"), .before = {}, .after = {.raw = "", .style = style}});
+    styled.cells.push_back(
+        {.address = at("A1"), .before = {}, .after = {.raw = "", .style = style}});
     document.apply(styled);
     UndoStack stack;
     set(stack, "A1", "7");

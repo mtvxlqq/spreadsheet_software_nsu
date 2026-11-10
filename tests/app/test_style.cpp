@@ -106,8 +106,9 @@ TEST_F(StyleTest, UnknownFormatNameIsReported) {
 TEST_F(StyleTest, BadDigitsAreReported) {
     input("A1", "1.5");
     go("A1");
-    for (const char* line : {"format fixed abc", "format fixed -1", "format fixed 16",
-                             "format fixed 1.5", "format fixed 2 3", "format", "format general 2"}) {
+    for (const char* line :
+         {"format fixed abc", "format fixed -1", "format fixed 16", "format fixed 1.5",
+          "format fixed 2 3", "format", "format general 2"}) {
         command(line);
         EXPECT_TRUE(failed()) << line;
         EXPECT_EQ(style("A1"), CellStyle{}) << line;

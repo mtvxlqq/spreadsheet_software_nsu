@@ -330,11 +330,12 @@ TEST_F(ActionsTest, SaveAndOpenKeepStylesAndWidths) {
     session.set_cursor(at("C5"));
     command("align right");
     command("w " + file("t.sst"));
-    EXPECT_EQ(read_file(dir / "t.sst"), "SST 2\n"
-                                        "A1\t0.256\n"
-                                        "!style\tA1\tpercent:1\tcenter\n"
-                                        "!style\tC5\tgeneral\tright\n"
-                                        "!width\tA\t20\n");
+    EXPECT_EQ(read_file(dir / "t.sst"),
+              "SST 2\n"
+              "A1\t0.256\n"
+              "!style\tA1\tpercent:1\tcenter\n"
+              "!style\tC5\tgeneral\tright\n"
+              "!width\tA\t20\n");
 
     command("e " + file("t.sst"));
     EXPECT_FALSE(failed()) << session.status().text;

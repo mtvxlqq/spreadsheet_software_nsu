@@ -362,7 +362,8 @@ TEST_F(SelectionTest, ClipboardDoesNotFollowSourceCells) {
 TEST_F(SelectionTest, ClipboardSurvivesNewDocument) {
     input("A1", "=1+1");
     copy("A1", "A1");
-    session.replace_document(std::make_unique<ss::core::Spreadsheet>(functions, value_parsers), "other.sst");
+    session.replace_document(std::make_unique<ss::core::Spreadsheet>(functions, value_parsers),
+                             "other.sst");
     paste_at("B2");
     EXPECT_EQ(shown("B2"), "2");
 }
@@ -453,6 +454,7 @@ TEST_F(SelectionTest, CommandsCanBeUsedDirectly) {
 TEST_F(SelectionTest, NewDocumentRestartsSelection) {
     go("C3");
     press({"f3", "down"});
-    session.replace_document(std::make_unique<ss::core::Spreadsheet>(functions, value_parsers), "other.sst");
+    session.replace_document(std::make_unique<ss::core::Spreadsheet>(functions, value_parsers),
+                             "other.sst");
     EXPECT_EQ(session.selection(), range("A1", "A1"));
 }

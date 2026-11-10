@@ -41,8 +41,9 @@ ss::core::DocumentEdit PasteCommand::plan(const ss::core::Spreadsheet& document)
     document.for_each_cell([&](CellAddress address) {
         if (area.contains(address) && !written.contains(address)) {
             const CellContent before = document.content(address);
-            edit.cells.push_back(
-                {.address = address, .before = before, .after = {.raw = "", .style = before.style}});
+            edit.cells.push_back({.address = address,
+                                  .before = before,
+                                  .after = {.raw = "", .style = before.style}});
         }
     });
     return edit;

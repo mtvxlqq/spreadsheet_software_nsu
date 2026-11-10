@@ -34,8 +34,8 @@ struct CellAddress {
     auto operator<=>(const CellAddress&) const = default;
 };
 
-// Ссылка из формулы. Флаги $ пока только запоминаем, понадобятся
-// на втором этапе при копировании формул.
+// Ссылка из формулы. Флаги $ на вычисление не влияют, они нужны
+// при копировании формулы: часть ссылки с $ не сдвигается.
 struct CellRef {
     CellAddress addr;
     bool abs_row = false;

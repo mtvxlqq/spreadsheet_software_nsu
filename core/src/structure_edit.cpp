@@ -50,8 +50,9 @@ Contents moved_cells(const Contents& before, const FunctionProvider& functions,
         const std::optional<CellRef> moved =
             mapping.map_ref({.addr = address, .abs_row = false, .abs_col = false});
         if (moved) {
-            after.emplace(moved->addr, CellContent{.raw = rewrite_formula(content.raw, functions, mapping),
-                                                   .style = content.style});
+            after.emplace(moved->addr,
+                          CellContent{.raw = rewrite_formula(content.raw, functions, mapping),
+                                      .style = content.style});
         } else if (kind == StructureEdit::Kind::Insert && !content.raw.empty()) {
             // при удалении ячейка пропадает, так и задумано, а вот при вставке
             // она уехала за край листа, и данные молча терять нельзя

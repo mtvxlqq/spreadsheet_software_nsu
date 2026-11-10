@@ -20,7 +20,7 @@ class FunctionProvider;
 //   additive       := multiplicative ( ('+' | '-') multiplicative )*
 //   multiplicative := unary ( ('*' | '/') unary )*
 //   unary          := ('-' | '+') unary | primary
-//   primary        := Number | String | Ref ( ':' Ref )?
+//   primary        := Number | String | Ref ( ':' Ref )? | '#REF!'
 //                   | Ident '(' ( comparison ( ',' comparison )* )? ')'
 //                   | '(' comparison ')'
 class Parser {

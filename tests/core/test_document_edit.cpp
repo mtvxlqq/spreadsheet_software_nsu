@@ -163,8 +163,7 @@ TEST_F(DocumentEditTest, ClearingInputKeepsStyle) {
 TEST_F(DocumentEditTest, InverseRestoresValuesAndStyles) {
     document.set_input(at("A1"), "1");
     document.set_input(at("A3"), "=A1+A2");
-    const DocumentEdit edit =
-        edit_to({{"A1", input("10", right_two_digits)}, {"A2", input("5")}});
+    const DocumentEdit edit = edit_to({{"A1", input("10", right_two_digits)}, {"A2", input("5")}});
     document.apply(edit);
     EXPECT_EQ(shown("A3"), "15");
 
@@ -188,9 +187,9 @@ TEST_F(DocumentEditTest, ParseErrorLeavesDocumentUntouched) {
     document.set_input(at("A1"), "1");
     CountingObserver observer;
     document.subscribe(&observer);
-    EXPECT_THROW(document.apply(edit_to({{"A1", input("2", right_two_digits)},
-                                         {"A2", input("=1+")}})),
-                 ss::core::ParseError);
+    EXPECT_THROW(
+        document.apply(edit_to({{"A1", input("2", right_two_digits)}, {"A2", input("=1+")}})),
+        ss::core::ParseError);
     EXPECT_EQ(document.raw(at("A1")), "1");
     EXPECT_EQ(document.style(at("A1")), CellStyle{});
     EXPECT_EQ(document.raw(at("A2")), "");
@@ -210,9 +209,9 @@ TEST_F(DocumentEditTest, FailureInTheMiddleIsRolledBack) {
     document.set_input(at("A1"), "1");
     document.set_input(at("B1"), "=A1*2");
     fail = true;
-    EXPECT_THROW(document.apply(edit_to({{"A1", input("7", right_two_digits)},
-                                         {"A2", input("=FAIL()")}})),
-                 std::runtime_error);
+    EXPECT_THROW(
+        document.apply(edit_to({{"A1", input("7", right_two_digits)}, {"A2", input("=FAIL()")}})),
+        std::runtime_error);
     fail = false;
     EXPECT_EQ(document.raw(at("A1")), "1");
     EXPECT_EQ(document.style(at("A1")), CellStyle{});

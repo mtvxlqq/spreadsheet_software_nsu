@@ -152,9 +152,8 @@ Element render_status_bar(const SessionView& view, int width) {
 // справка длиннее экрана, поэтому рисуем её с той строки, до которой долистали
 Element render_help(const SessionView& view) {
     Elements lines;
-    lines.push_back(
-        ftxui::text("Справка: стрелки листают, любая другая клавиша вернёт к таблице") |
-        ftxui::bold);
+    lines.push_back(ftxui::text("Справка: стрелки листают, любая другая клавиша вернёт к таблице") |
+                    ftxui::bold);
     const std::vector<std::string> help = view.help_lines();
     for (std::size_t i = static_cast<std::size_t>(view.help_scroll()); i < help.size(); ++i) {
         lines.push_back(ftxui::text(help[i]));

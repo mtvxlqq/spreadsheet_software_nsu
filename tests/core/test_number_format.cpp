@@ -114,6 +114,7 @@ TEST_F(NumberFormatRegistryTest, NamesAreSorted) {
 
 TEST_F(NumberFormatRegistryTest, SameNameTwiceIsError) {
     EXPECT_THROW(
-        formats.add("fixed", [](int digits) { return std::make_shared<const FixedFormat>(digits); }),
+        formats.add("fixed",
+                    [](int digits) { return std::make_shared<const FixedFormat>(digits); }),
         ss::core::Error);
 }
