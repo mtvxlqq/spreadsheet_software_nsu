@@ -33,6 +33,7 @@ add_executable(core_tests
     core/test_ref_shifter.cpp
     core/test_sheet.cpp
     core/test_spreadsheet.cpp
+    core/test_structure_edit.cpp
     core/test_value.cpp
 )
 target_include_directories(core_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
@@ -50,6 +51,7 @@ add_executable(app_tests
     app/test_line_editor.cpp
     app/test_selection.cpp
     app/test_session_keys.cpp
+    app/test_structure.cpp
     app/test_style.cpp
     app/test_task_runner.cpp
     app/test_undo.cpp

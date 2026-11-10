@@ -16,11 +16,11 @@ std::string rewrite_formula(std::string_view raw, const FunctionProvider& functi
         return std::string(raw);
     }
     const ExprPtr formula = Parser::parse(text, functions);
-    std::string rewritten = FormulaPrinter::print(*RefShifter::shift(*formula, mapping));
-    if (rewritten == FormulaPrinter::print(*formula)) {
+    const ExprPtr shifted = RefShifter::shift_if_changed(*formula, mapping);
+    if (!shifted) {
         return std::string(raw);
     }
-    return rewritten;
+    return FormulaPrinter::print(*shifted);
 }
 
 std::string translate_formula(std::string_view raw, const FunctionProvider& functions, int d_row,

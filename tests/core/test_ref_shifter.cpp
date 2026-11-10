@@ -235,3 +235,30 @@ TEST_F(RefShifterTest, RefOutsideSheetIsLeftAlone) {
 TEST_F(RefShifterTest, ExistingRefErrorStays) {
     EXPECT_EQ(rows("=#REF!+A5", Kind::Insert, 0), "=#REF!+A6");
 }
+
+TEST_F(RefShifterTest, ShiftIfChangedTellsWhenNothingMoved) {
+    const CopyMapping down(1, 0);
+    const auto with_ref = Parser::parse("=A1+1", functions);
+    const auto without_refs = Parser::parse("=1+SUM(2, 3)", functions);
+    const auto absolute = Parser::parse("=$A$1*2", functions);
+
+    const auto shifted = RefShifter::shift_if_changed(*with_ref, down);
+    ASSERT_NE(shifted, nullptr);
+    EXPECT_EQ(FormulaPrinter::print(*shifted), "=A2+1");
+    EXPECT_EQ(RefShifter::shift_if_changed(*without_refs, down), nullptr);
+    EXPECT_EQ(RefShifter::shift_if_changed(*absolute, down), nullptr);
+    // обычный shift копию возвращает всегда
+    EXPECT_EQ(FormulaPrinter::print(*RefShifter::shift(*absolute, down)), "=$A$1*2");
+}
+
+// ссылка глубоко в дереве тоже считается
+TEST_F(RefShifterTest, ShiftIfChangedSeesNestedReferences) {
+    const StructureMapping insert({.kind = Kind::Insert, .axis = Axis::Row, .at = 0, .count = 1});
+    const auto nested = Parser::parse("=IF(1, -(2+SUM(3, B5:B6)), 0)", functions);
+    const auto shifted = RefShifter::shift_if_changed(*nested, insert);
+    ASSERT_NE(shifted, nullptr);
+    EXPECT_EQ(FormulaPrinter::print(*shifted), "=IF(1,-(2+SUM(3,B6:B7)),0)");
+
+    const StructureMapping below({.kind = Kind::Insert, .axis = Axis::Row, .at = 50, .count = 1});
+    EXPECT_EQ(RefShifter::shift_if_changed(*nested, below), nullptr);
+}

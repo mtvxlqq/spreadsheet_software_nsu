@@ -11,8 +11,18 @@ namespace ss::core {
 
 ExprPtr RefShifter::shift(const Expr& expr, const RefMapping& mapping) {
     RefShifter shifter(mapping);
-    expr.accept(shifter);
-    return std::move(shifter.result_);
+    return shifter.shift_child(expr);
+}
+
+ExprPtr RefShifter::shift_if_changed(const Expr& expr, const RefMapping& mapping) {
+    RefShifter shifter(mapping);
+    ExprPtr shifted = shifter.shift_child(expr);
+    return shifter.changed_ ? std::move(shifted) : nullptr;
+}
+
+ExprPtr RefShifter::shift_child(const Expr& child) {
+    child.accept(*this);
+    return std::move(result_);
 }
 
 void RefShifter::visit(const NumberLit& node) {
@@ -29,6 +39,7 @@ void RefShifter::visit(const ErrorLit& node) {
 
 void RefShifter::visit(const RefExpr& node) {
     const std::optional<CellRef> moved = mapping_.map_ref(node.ref());
+    changed_ = changed_ || moved != node.ref();
     if (moved) {
         result_ = std::make_unique<RefExpr>(*moved);
     } else {
@@ -38,6 +49,7 @@ void RefShifter::visit(const RefExpr& node) {
 
 void RefShifter::visit(const RangeExpr& node) {
     const auto moved = mapping_.map_range(node.from(), node.to());
+    changed_ = changed_ || moved != std::pair{node.from(), node.to()};
     if (moved) {
         result_ = std::make_unique<RangeExpr>(moved->first, moved->second);
     } else {
@@ -46,12 +58,12 @@ void RefShifter::visit(const RangeExpr& node) {
 }
 
 void RefShifter::visit(const UnaryExpr& node) {
-    result_ = std::make_unique<UnaryExpr>(node.op(), shift(node.operand(), mapping_));
+    result_ = std::make_unique<UnaryExpr>(node.op(), shift_child(node.operand()));
 }
 
 void RefShifter::visit(const BinaryExpr& node) {
-    ExprPtr left = shift(node.left(), mapping_);
-    ExprPtr right = shift(node.right(), mapping_);
+    ExprPtr left = shift_child(node.left());
+    ExprPtr right = shift_child(node.right());
     result_ = std::make_unique<BinaryExpr>(node.op(), std::move(left), std::move(right));
 }
 
@@ -59,7 +71,7 @@ void RefShifter::visit(const FunctionCallExpr& node) {
     std::vector<ExprPtr> args;
     args.reserve(node.args().size());
     for (const ExprPtr& arg : node.args()) {
-        args.push_back(shift(*arg, mapping_));
+        args.push_back(shift_child(*arg));
     }
     result_ = node.with_args(std::move(args));
 }

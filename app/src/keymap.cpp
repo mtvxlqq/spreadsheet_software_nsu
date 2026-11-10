@@ -94,6 +94,10 @@ Keymap Keymap::defaults() {
     keymap.bind("f3", "start-selection");
     keymap.bind("ctrl+c", "copy");
     keymap.bind("ctrl+v", "paste");
+    keymap.bind("f5", "insert-row");
+    keymap.bind("f6", "delete-row");
+    keymap.bind("f7", "insert-col");
+    keymap.bind("f8", "delete-col");
     keymap.bind(">", "column-wider");
     keymap.bind("<", "column-narrower");
     keymap.bind(":", "command-mode");
