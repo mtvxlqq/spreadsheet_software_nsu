@@ -219,12 +219,76 @@ TEST_F(ActionsTest, SaveWithoutAnyPathFails) {
     EXPECT_TRUE(session.dirty());
 }
 
-TEST_F(ActionsTest, SaveToCsvIsNotSupported) {
+// в CSV нет формул: сохранить в него значит их потерять, для этого есть export
+TEST_F(ActionsTest, SaveToCsvIsRefusedAndPointsToExport) {
     input("A1", "1");
     command("w " + file("t.csv"));
     EXPECT_TRUE(failed());
+    EXPECT_NE(session.status().text.find("export"), std::string::npos);
     EXPECT_FALSE(fs::exists(dir / "t.csv"));
     EXPECT_TRUE(session.dirty());
+    EXPECT_FALSE(session.current_path().has_value());
+}
+
+TEST_F(ActionsTest, ExportWritesValuesToCsv) {
+    input("A1", "2");
+    input("B1", "=A1*21");
+    input("A2", "a,b");
+    command("export " + file("out.csv"));
+    EXPECT_FALSE(failed()) << session.status().text;
+    EXPECT_EQ(read_file(dir / "out.csv"), "2,42\r\n\"a,b\",\r\n");
+    EXPECT_FALSE(fs::exists(dir / "out.csv.tmp"));
+    // формулы в документе остались
+    EXPECT_EQ(session.document().raw(at("B1")), "=A1*21");
+}
+
+// экспорт это копия на сторону: документ остаётся несохранённым и без файла
+TEST_F(ActionsTest, ExportDoesNotChangeDirtyAndCurrentFile) {
+    input("A1", "1");
+    command("export " + file("out.csv"));
+    EXPECT_TRUE(session.dirty());
+    EXPECT_FALSE(session.current_path().has_value());
+
+    command("w " + file("t.sst"));
+    command("export " + file("out.csv"));
+    EXPECT_FALSE(session.dirty());
+    EXPECT_EQ(session.current_path(), fs::path(file("t.sst")));
+}
+
+TEST_F(ActionsTest, ExportedCsvImportsBack) {
+    input("A1", "15.03.2024");
+    input("B1", "=A1+1");
+    input("A2", "текст");
+    command("export " + file("out.csv"));
+    command("import " + file("out.csv"));
+    EXPECT_FALSE(failed()) << session.status().text;
+    EXPECT_EQ(shown("A1"), "2024-03-15");
+    EXPECT_EQ(shown("B1"), "2024-03-16");
+    EXPECT_EQ(session.document().raw(at("B1")), "2024-03-16");
+    EXPECT_EQ(shown("A2"), "текст");
+}
+
+TEST_F(ActionsTest, ExportNeedsOnePathWithKnownFormat) {
+    input("A1", "1");
+    command("export");
+    EXPECT_TRUE(failed());
+    command("export " + file("a.csv") + " " + file("b.csv"));
+    EXPECT_TRUE(failed());
+    command("export " + file("out.xlsx"));
+    EXPECT_TRUE(failed());
+    command("export " + file("no/such/dir/out.csv"));
+    EXPECT_TRUE(failed());
+    EXPECT_FALSE(fs::exists(dir / "a.csv"));
+    EXPECT_FALSE(fs::exists(dir / "out.xlsx"));
+}
+
+// в свой формат экспортировать тоже можно, получится копия файла
+TEST_F(ActionsTest, ExportToNativeFormatMakesCopy) {
+    input("A1", "=1+1");
+    command("export " + file("copy.sst"));
+    EXPECT_FALSE(failed()) << session.status().text;
+    EXPECT_EQ(read_file(dir / "copy.sst"), "SST 2\nA1\t=1+1\n");
+    EXPECT_FALSE(session.current_path().has_value());
 }
 
 TEST_F(ActionsTest, SaveIntoMissingDirectoryFails) {

@@ -80,6 +80,7 @@ void register_actions(ActionRegistry& registry) {
     registry.add("save", [] { return std::make_unique<SaveAction>(); });
     registry.add("open", [] { return std::make_unique<OpenAction>(); });
     registry.add("import-csv", [] { return std::make_unique<ImportCsvAction>(); });
+    registry.add("export", [] { return std::make_unique<ExportAction>(); });
     registry.add("quit", [] { return std::make_unique<QuitAction>(); });
     registry.add("force-quit", [] { return std::make_unique<ForceQuitAction>(); });
 

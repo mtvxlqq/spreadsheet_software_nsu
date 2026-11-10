@@ -24,6 +24,13 @@ public:
     // если поток не дал записать, бросает FileFormatError
     virtual void save(std::ostream& out, const CellSource& source) const = 0;
 
+    // Можно ли потом открыть файл и получить ту же таблицу. Если нет, формат
+    // годится только для экспорта: сохранять в него документ нельзя, иначе
+    // формулы молча пропали бы.
+    virtual bool keeps_formulas() const {
+        return true;
+    }
+
 protected:
     FileWriter() = default;
 };

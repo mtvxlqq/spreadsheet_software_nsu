@@ -19,6 +19,7 @@ add_library(ss_core STATIC
     src/formula_rewrite.cpp
     src/function_registry.cpp
     src/io/csv_reader.cpp
+    src/io/csv_writer.cpp
     src/io/format_registry.cpp
     src/io/native_format.cpp
     src/io/register_formats.cpp

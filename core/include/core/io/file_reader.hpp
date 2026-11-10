@@ -10,7 +10,7 @@ namespace ss::core {
 class CellSink;
 
 // Формат, который умеет читать файл (паттерн Strategy). Читать и писать
-// разделено, потому что CSV на первом этапе только читается.
+// разделено: формат может уметь только одно из двух.
 class FileReader {
 public:
     virtual ~FileReader() = default;

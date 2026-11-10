@@ -67,6 +67,11 @@ void SaveAction::execute(Session& session, std::span<const std::string> args) co
     }
     // если такого формата нет, бросит до того, как мы что-то запишем
     const ss::core::FileWriter& writer = session.formats().writer_for(path.string());
+    if (!writer.keeps_formulas()) {
+        // иначе формулы пропали бы, а файл без них стал бы текущим документом
+        throw CommandError("формат " + std::string(writer.name()) +
+                           " не хранит формулы, для него есть :export путь");
+    }
     save_document(path, writer, session.document());
     session.mark_saved(path);
     session.set_status("сохранено в " + path.string());
@@ -87,6 +92,22 @@ void OpenAction::execute(Session& session, std::span<const std::string> args) co
         target.replace_document(std::move(document), path);
         target.set_status("открыт " + path.string());
     });
+}
+
+std::string_view ExportAction::name() const {
+    return "export";
+}
+
+std::string_view ExportAction::description() const {
+    return "записать значения без формул, например в CSV (:export путь)";
+}
+
+void ExportAction::execute(Session& session, std::span<const std::string> args) const {
+    const std::filesystem::path path = path_argument(name(), args);
+    const ss::core::FileWriter& writer = session.formats().writer_for(path.string());
+    // та же запись через временный файл, что и при сохранении
+    save_document(path, writer, session.document());
+    session.set_status("экспортировано в " + path.string());
 }
 
 std::string_view ImportCsvAction::name() const {

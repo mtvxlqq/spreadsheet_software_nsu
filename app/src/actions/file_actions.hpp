@@ -34,4 +34,15 @@ public:
     void execute(Session& session, std::span<const std::string> args) const override;
 };
 
+// ":export путь": записать значения в другой формат, например CSV.
+// Текущий файл документа и отметка о несохранённых изменениях не меняются.
+class ExportAction final : public Action {
+public:
+    ExportAction() = default;
+
+    std::string_view name() const override;
+    std::string_view description() const override;
+    void execute(Session& session, std::span<const std::string> args) const override;
+};
+
 }  // namespace ss::app

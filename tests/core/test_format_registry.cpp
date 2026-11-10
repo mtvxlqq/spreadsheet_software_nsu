@@ -39,8 +39,7 @@ TEST_F(FormatRegistryTest, ExtensionIgnoresCaseAndDirectories) {
 TEST_F(FormatRegistryTest, UnknownFormat) {
     EXPECT_THROW(static_cast<void>(registry.reader_for("table.xlsx")), FileFormatError);
     EXPECT_THROW(static_cast<void>(registry.reader_for("table")), FileFormatError);
-    // CSV на первом этапе только читается
-    EXPECT_THROW(static_cast<void>(registry.writer_for("data.csv")), FileFormatError);
+    EXPECT_THROW(static_cast<void>(registry.writer_for("table.xlsx")), FileFormatError);
 }
 
 TEST_F(FormatRegistryTest, DuplicateExtensionIsRejected) {
@@ -48,4 +47,11 @@ TEST_F(FormatRegistryTest, DuplicateExtensionIsRejected) {
                  ss::core::Error);
     // старый CSV на месте
     EXPECT_EQ(registry.reader_for("data.csv").name(), "CSV");
+}
+
+// в CSV можно и писать, но только как экспорт: формулы он не хранит
+TEST_F(FormatRegistryTest, CsvWriterIsForExportOnly) {
+    EXPECT_EQ(registry.writer_for("data.csv").name(), "CSV");
+    EXPECT_FALSE(registry.writer_for("data.CSV").keeps_formulas());
+    EXPECT_TRUE(registry.writer_for("table.sst").keeps_formulas());
 }

@@ -3,6 +3,7 @@
 #include <memory>
 
 #include "core/io/csv_reader.hpp"
+#include "core/io/csv_writer.hpp"
 #include "core/io/format_registry.hpp"
 #include "core/io/native_format.hpp"
 
@@ -14,6 +15,7 @@ void register_formats(FormatRegistry& registry) {
     registry.add_reader(native);
     registry.add_writer(native);
     registry.add_reader(std::make_shared<const CsvReader>());
+    registry.add_writer(std::make_shared<const CsvWriter>());
 }
 
 }  // namespace ss::core

@@ -2,6 +2,7 @@
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include <gtest/gtest.h>
 
@@ -10,6 +11,7 @@
 #include "core/errors.hpp"
 #include "core/function_registry.hpp"
 #include "core/io/csv_reader.hpp"
+#include "core/io/csv_writer.hpp"
 #include "core/spreadsheet.hpp"
 #include "core/value.hpp"
 #include "core/value_parser.hpp"
@@ -48,6 +50,17 @@ protected:
 
     std::string shown(std::string_view address) const {
         return sheet.value(at(address))->to_text();
+    }
+
+    void set(std::string_view address, std::string_view raw) {
+        sheet.set_input(at(address), raw);
+    }
+
+    // что CsvWriter запишет для текущего листа
+    std::string exported() const {
+        std::ostringstream out;
+        ss::core::CsvWriter().save(out, sheet);
+        return out.str();
     }
 
     ss::core::FunctionRegistry functions;
@@ -146,4 +159,86 @@ TEST_F(CsvTest, TextAfterClosingQuote) {
 TEST_F(CsvTest, TooManyColumns) {
     const std::string row(static_cast<std::size_t>(ss::core::max_cols), ',');
     EXPECT_THROW(load(row + "x\n"), FileFormatError);
+}
+
+TEST_F(CsvTest, ExportWritesValuesRowByRow) {
+    set("A1", "name");
+    set("B1", "value");
+    set("A2", "x");
+    set("B2", "1.5");
+    EXPECT_EQ(exported(), "name,value\r\nx,1.5\r\n");
+}
+
+TEST_F(CsvTest, ExportWritesResultsInsteadOfFormulas) {
+    set("A1", "2");
+    set("B1", "=A1*21");
+    set("C1", "=SUM(A1:B1)");
+    EXPECT_EQ(exported(), "2,42,44\r\n");
+}
+
+TEST_F(CsvTest, ExportWritesErrorsAsText) {
+    set("A1", "=1/0");
+    set("B1", "=NOPE(1)");
+    set("C1", "=C1");
+    EXPECT_EQ(exported(), "#DIV/0!,#NAME?,#CYCLE!\r\n");
+}
+
+TEST_F(CsvTest, ExportQuotesSpecialCharacters) {
+    set("A1", "a,b");
+    set("B1", "say \"hi\"");
+    set("C1", "two\nlines");
+    set("D1", "plain text");
+    EXPECT_EQ(exported(), "\"a,b\",\"say \"\"hi\"\"\",\"two\nlines\",plain text\r\n");
+}
+
+TEST_F(CsvTest, ExportStartsAtA1AndKeepsEmptyCells) {
+    set("B2", "x");
+    set("D3", "y");
+    // три строки по четыре поля, пустые ячейки это пустые поля
+    EXPECT_EQ(exported(), ",,,\r\n,x,,\r\n,,,y\r\n");
+}
+
+TEST_F(CsvTest, ExportOfEmptySheetIsEmptyFile) {
+    EXPECT_EQ(exported(), "");
+}
+
+TEST_F(CsvTest, ExportWritesDatesAndFullPrecision) {
+    set("A1", "15.03.2024");
+    set("B1", "=A1+1");
+    set("C1", "=1/3");
+    // оформление в CSV не попадает, число пишется как есть
+    sheet.set_style(at("C1"), {.format = "fixed:2", .align = std::nullopt});
+    EXPECT_EQ(exported(), "2024-03-15,2024-03-16,0.3333333333\r\n");
+}
+
+TEST_F(CsvTest, ExportedFileImportsBackWithSameValues) {
+    set("A1", "текст, с запятой");
+    set("B1", "=2*3");
+    set("C1", "15.03.2024");
+    set("A2", "say \"hi\"");
+    set("C2", "multi\nline");
+    set("B3", "=1/0");
+    set("D3", "\'=not a formula");
+
+    Spreadsheet loaded{functions, value_parsers};
+    std::istringstream in(exported());
+    reader.load(in, loaded);
+
+    sheet.for_each_cell([&](CellAddress address) {
+        EXPECT_EQ(loaded.value(address)->to_text(), sheet.value(address)->to_text())
+            << address.to_string();
+    });
+    EXPECT_EQ(loaded.used_range(), sheet.used_range());
+    // формул в файле не было, только их результаты
+    EXPECT_EQ(loaded.raw(at("B1")), "6");
+    EXPECT_TRUE(loaded.value(at("C1"))->as_date().has_value());
+    // текст, похожий на формулу, формулой не стал
+    EXPECT_EQ(loaded.formula_text(at("D3")), "");
+}
+
+TEST_F(CsvTest, WriterIsForExportOnly) {
+    const ss::core::CsvWriter writer;
+    EXPECT_EQ(writer.name(), "CSV");
+    EXPECT_EQ(writer.extensions(), std::vector<std::string>{".csv"});
+    EXPECT_FALSE(writer.keeps_formulas());
 }
