@@ -37,6 +37,8 @@ void register_actions(ActionRegistry& registry) {
     registry.add("go-top", [] { return std::make_unique<GoTopAction>(); });
     registry.add("start-edit", [] { return std::make_unique<StartEditAction>(); });
     registry.add("clear-cell", [] { return std::make_unique<ClearCellAction>(); });
+    registry.add("undo", [] { return std::make_unique<UndoAction>(); });
+    registry.add("redo", [] { return std::make_unique<RedoAction>(); });
     registry.add("command-mode", [] { return std::make_unique<CommandModeAction>(); });
     registry.add("show-help", [] { return std::make_unique<ShowHelpAction>(); });
     registry.add("save", [] { return std::make_unique<SaveAction>(); });
@@ -52,6 +54,7 @@ void register_actions(ActionRegistry& registry) {
     registry.add_alias("q!", "force-quit");
     registry.add_alias("import", "import-csv");
     registry.add_alias("help", "show-help");
+    registry.add_alias("u", "undo");
 }
 
 }  // namespace ss::app

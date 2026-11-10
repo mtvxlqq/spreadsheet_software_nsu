@@ -153,11 +153,13 @@ classDiagram
     class RefCollector {
         +collect(Expr) set~CellAddress~$
     }
-    class RefShifter
+    class RefShifter {
+        +shift(Expr, RefMapping) ExprPtr$
+    }
     ExprVisitor <|.. Evaluator
     ExprVisitor <|.. FormulaPrinter
     ExprVisitor <|.. RefCollector
-    ExprVisitor <|.. RefShifter : этап 2
+    ExprVisitor <|.. RefShifter
     Expr ..> ExprVisitor
 ```
 
@@ -507,13 +509,25 @@ classDiagram
         +apply(Spreadsheet) void
         +revert(Spreadsheet) void
     }
-    class SetCellCommand {
-        -string raw_
-        -string old_raw_
+    class PlannedCommand {
+        <<abstract>>
+        -DocumentEdit edit_
+        #plan(Spreadsheet) DocumentEdit*
     }
-    EditCommand <|-- SetCellCommand
-    class UndoStack
-    UndoStack *-- EditCommand : этап 2
+    class SetCellCommand {
+        -CellAddress address_
+        -string raw_
+    }
+    EditCommand <|-- PlannedCommand
+    PlannedCommand <|-- SetCellCommand
+    class UndoStack {
+        -vector~EditCommand~ done_
+        -vector~EditCommand~ undone_
+        +push(EditCommand) void
+        +undo(Spreadsheet) bool
+        +redo(Spreadsheet) bool
+    }
+    UndoStack *-- EditCommand
 
     class TaskRunner {
         -list~Task~ tasks_
@@ -535,7 +549,11 @@ classDiagram
     }
 ```
 
-Все изменения документа идут через `apply_edit` и `EditCommand`, даже очистка ячейки. На втором этапе для отмены хватит положить команду в `UndoStack` внутри `apply_edit`, остальной код менять не придётся.
+Все изменения документа идут через `apply_edit` и `EditCommand`, даже очистка ячейки. После удачного `apply` команда кладётся в `UndoStack`, а `ctrl+z` и `ctrl+y` зовут `Session::undo` и `redo`. Стек помнит 256 правок, память под него берётся сразу, поэтому `push` не бросает. Открыли или импортировали другой документ, стек очищается: старые команды помнят ячейки старого документа. После отмены документ считается изменённым, даже если вернулись к сохранённому.
+
+Правка с отменой сделана через `PlannedCommand` (Template Method). Наследник только считает `DocumentEdit`: список ячеек с содержимым до и после. `apply` и `revert` у всех одинаковые: `Spreadsheet::apply(edit)` и `apply(edit.inverse())`. `Spreadsheet::apply` сначала разбирает весь ввод, поэтому при ошибке в формуле таблица не меняется. Пересчёт и уведомление идут один раз на всю правку. Если посреди кончится память, уже записанные ячейки возвращаются к старому содержимому.
+
+Оформление ячеек (`CellStyle`: формат чисел и выравнивание) лежит отдельно от содержимого, в `StyleTable`. Поэтому очистка ячейки стиль не снимает, а `used_range` и пересчёт про стили не знают.
 
 `Session` не подписана на `Spreadsheet` как `CellObserver`: все изменения документа и так проходят через неё. Интерфейс подписывается на `Session` через `SessionObserver` и после каждой клавиши получает сигнал «перерисуйся».
 
@@ -637,7 +655,7 @@ std::runtime_error
 - **Новый формат файла.** Наследник `FileReader` и/или `FileWriter` и строка в `register_formats`. Формат выбирается по расширению файла.
 - **Новый формат чисел** (этап 2). Наследник `NumberFormat`.
 - **Новое действие.** Наследник `Action` и строка в `register_actions`. Оно сразу доступно из командной строки и конфига клавиш и само попадает в справку.
-- **Новая операция с отменой** (этап 2). Наследник `EditCommand` и `Action`, который его запускает.
+- **Новая операция с отменой.** Наследник `PlannedCommand` с одним методом `plan` и `Action`, который его запускает.
 
 ## Паттерны
 
@@ -669,7 +687,7 @@ std::runtime_error
 
 Клавиши берутся из конфига, поэтому каждое действие сделано отдельным объектом с именем. Со `switch` по клавишам переназначить их из файла не получилось бы.
 
-Правки документа (`EditCommand`) — тоже команды: каждая умеет и выполниться, и откатиться. На втором этапе на этом будет работать отмена. Сохранять перед каждым изменением копию всей таблицы заняло бы слишком много памяти.
+Правки документа (`EditCommand`) — тоже команды: каждая умеет и выполниться, и откатиться. На этом работает отмена через `UndoStack`. Сохранять перед каждым изменением копию всей таблицы заняло бы слишком много памяти, а команда помнит только тронутые ячейки.
 
 ### State — режимы
 
@@ -711,7 +729,7 @@ std::runtime_error
 | `Session` подписана на `Spreadsheet` | не подписана | все изменения документа и так идут через `Session` |
 | `Keymap::load(path)` | `load(path, known_actions)` | неизвестное действие в конфиге видно сразу, с номером строки |
 | нет | `MainThreadDispatcher`, `SessionView`, `CellPresenter`, `LineEditor` | `ss_app` не зависит от FTXUI (DIP), в TUI не остаётся логики |
-| `CellStyle` в `Cell` | пока нет | появится на втором этапе, заглушку заранее не добавлял |
+| `CellStyle` в `Cell` | отдельная `StyleTable` в `Spreadsheet` | у пустой ячейки тоже бывает стиль, а пересчёту и графу он не нужен |
 | `spreadsheet` одной целью | библиотека `ss_tui` и маленький `spreadsheet` | иначе код интерфейса нечем подключить к тестам |
 | `screen.Post` | `App::Post` | в FTXUI 7 `ScreenInteractive` переименован в `App` |
 | перерисовка сама после `Post` | `on_session_changed` отправляет `Event::Custom` | `Post` с функцией не обновляет кадр |

@@ -48,6 +48,7 @@ add_executable(app_tests
     app/test_line_editor.cpp
     app/test_session_keys.cpp
     app/test_task_runner.cpp
+    app/test_undo.cpp
     app/test_viewport.cpp
 )
 target_include_directories(app_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})

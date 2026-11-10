@@ -18,7 +18,8 @@ namespace {
 const std::vector<std::string> known_actions = {
     "move-up",   "move-down",  "move-left",  "move-right", "page-up",   "page-down",
     "go-home",   "go-top",     "start-edit", "clear-cell", "command-mode", "show-help",
-    "save",      "open",       "import-csv", "quit",       "force-quit",
+    "save",      "open",       "import-csv", "quit",       "force-quit",   "undo",
+    "redo",
 };
 
 std::string testdata(const std::string& name) {

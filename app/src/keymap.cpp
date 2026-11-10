@@ -89,6 +89,8 @@ Keymap Keymap::defaults() {
     keymap.bind("enter", "start-edit");
     keymap.bind("f2", "start-edit");
     keymap.bind("delete", "clear-cell");
+    keymap.bind("ctrl+z", "undo");
+    keymap.bind("ctrl+y", "redo");
     keymap.bind(":", "command-mode");
     keymap.bind("?", "show-help");
     keymap.bind("f1", "show-help");

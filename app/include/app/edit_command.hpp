@@ -7,8 +7,7 @@ class Spreadsheet;
 namespace ss::app {
 
 // Одно изменение документа (паттерн Command). Все правки идут через
-// Session::apply_edit, поэтому на втором этапе для undo хватит стека
-// таких команд, а остальной код менять не придётся.
+// Session::apply_edit, а оттуда в UndoStack, поэтому любую можно отменить.
 class EditCommand {
 public:
     virtual ~EditCommand() = default;

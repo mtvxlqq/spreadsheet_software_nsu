@@ -16,6 +16,7 @@
 #include "app/session_view.hpp"
 #include "app/status.hpp"
 #include "app/task_runner.hpp"
+#include "app/undo_stack.hpp"
 #include "app/viewport.hpp"
 #include "core/address.hpp"
 #include "core/spreadsheet.hpp"
@@ -61,6 +62,9 @@ public:
     void set_mode(std::unique_ptr<Mode> mode);
     // всё, что меняет документ, проходит здесь; если бросит, ничего не изменилось
     void apply_edit(std::unique_ptr<EditCommand> command);
+    // false, если отменять или повторять нечего
+    bool undo();
+    bool redo();
     void set_status(std::string text, Status::Kind kind = Status::Kind::Info);
 
     // открыли файл: он становится текущим, несохранённых изменений нет
@@ -136,6 +140,7 @@ private:
     Viewport viewport_;
     LineEditor edit_line_;
     Status status_;
+    UndoStack history_;
     std::unique_ptr<Mode> mode_;
     // режим, на который переключимся после текущей клавиши
     std::unique_ptr<Mode> pending_mode_;

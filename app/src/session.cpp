@@ -78,8 +78,26 @@ void Session::set_mode(std::unique_ptr<Mode> mode) {
 
 void Session::apply_edit(std::unique_ptr<EditCommand> command) {
     command->apply(*document_);
+    history_.push(std::move(command));
     dirty_ = true;
-    // на втором этапе тут команда положится в стек отмены
+}
+
+// После отмены документ всё равно считаем изменённым: сравнивать его
+// с сохранённым дорого, а лишний вопрос при выходе не страшен.
+bool Session::undo() {
+    if (!history_.undo(*document_)) {
+        return false;
+    }
+    dirty_ = true;
+    return true;
+}
+
+bool Session::redo() {
+    if (!history_.redo(*document_)) {
+        return false;
+    }
+    dirty_ = true;
+    return true;
 }
 
 void Session::set_status(std::string text, Status::Kind kind) {
@@ -150,6 +168,8 @@ void Session::finish_background(const std::function<void(Session&)>& next,
 
 void Session::set_document(std::unique_ptr<ss::core::Spreadsheet> document) {
     document_ = std::move(document);
+    // команды из стека помнят ячейки старого документа
+    history_.clear();
     set_cursor({.row = 0, .col = 0});
 }
 

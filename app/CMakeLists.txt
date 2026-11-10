@@ -18,6 +18,7 @@ add_library(ss_app STATIC
     src/session.cpp
     src/set_cell_command.cpp
     src/task_runner.cpp
+    src/undo_stack.cpp
     src/viewport.cpp
 )
 target_include_directories(ss_app PUBLIC include)
