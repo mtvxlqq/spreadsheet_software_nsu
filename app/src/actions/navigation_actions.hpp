@@ -6,6 +6,8 @@
 
 namespace ss::app {
 
+// Все перемещения оставляют выделение: ими его и растягивают.
+
 // Сдвиг курсора на (d_row, d_col). Один класс на все четыре стрелки,
 // отличаются только числа.
 class MoveAction final : public Action {
@@ -15,6 +17,10 @@ public:
     std::string_view name() const override;
     std::string_view description() const override;
     void execute(Session& session, std::span<const std::string> args) const override;
+
+    bool keeps_selection() const override {
+        return true;
+    }
 
 private:
     std::string name_;
@@ -32,6 +38,10 @@ public:
     std::string_view description() const override;
     void execute(Session& session, std::span<const std::string> args) const override;
 
+    bool keeps_selection() const override {
+        return true;
+    }
+
 private:
     std::string name_;
     std::string description_;
@@ -46,6 +56,10 @@ public:
     std::string_view name() const override;
     std::string_view description() const override;
     void execute(Session& session, std::span<const std::string> args) const override;
+
+    bool keeps_selection() const override {
+        return true;
+    }
 };
 
 // в A1
@@ -56,6 +70,10 @@ public:
     std::string_view name() const override;
     std::string_view description() const override;
     void execute(Session& session, std::span<const std::string> args) const override;
+
+    bool keeps_selection() const override {
+        return true;
+    }
 };
 
 }  // namespace ss::app

@@ -32,6 +32,8 @@ public:
     // по ним CellPresenter показывает числа
     virtual const ss::core::NumberFormatRegistry& number_formats() const = 0;
     virtual ss::core::CellAddress cursor() const = 0;
+    // выделенный диапазон, его надо подсветить; пусто, если выделения нет
+    virtual std::optional<ss::core::Range> selection() const = 0;
     virtual const Viewport& viewport() const = 0;
     virtual std::string_view mode_name() const = 0;
     // в строке формулы правка, и там рисуется каретка

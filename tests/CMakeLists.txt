@@ -48,6 +48,7 @@ add_executable(app_tests
     app/test_extensions.cpp
     app/test_keymap.cpp
     app/test_line_editor.cpp
+    app/test_selection.cpp
     app/test_session_keys.cpp
     app/test_style.cpp
     app/test_task_runner.cpp

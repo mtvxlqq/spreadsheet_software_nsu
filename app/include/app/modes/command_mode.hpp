@@ -21,6 +21,11 @@ public:
         return true;
     }
 
+    // команда, набранная при выделении, работает с выделенным диапазоном
+    bool keeps_selection() const override {
+        return true;
+    }
+
     // слова через пробелы, пустых не бывает
     static std::vector<std::string> split_words(std::string_view line);
 };

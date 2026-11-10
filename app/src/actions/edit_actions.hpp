@@ -14,6 +14,7 @@ public:
     void execute(Session& session, std::span<const std::string> args) const override;
 };
 
+// очищает выделенный диапазон или ячейку под курсором
 class ClearCellAction final : public Action {
 public:
     ClearCellAction() = default;

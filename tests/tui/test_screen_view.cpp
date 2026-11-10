@@ -198,6 +198,33 @@ TEST_F(ScreenViewTest, CursorCellIsInverted) {
     EXPECT_TRUE(screen.PixelAt(first_cell_x + 10, first_grid_line).inverted);
 }
 
+TEST_F(ScreenViewTest, SelectionIsHighlighted) {
+    press({"f3", "down", "right"});
+    const Screen screen = draw();
+    // A1, B1 и A2 залиты, B2 с курсором подчёркнута, C1 и A3 как обычно
+    EXPECT_TRUE(screen.PixelAt(first_cell_x, first_grid_line).inverted);
+    EXPECT_TRUE(screen.PixelAt(first_cell_x + 10, first_grid_line).inverted);
+    EXPECT_TRUE(screen.PixelAt(first_cell_x, first_grid_line + 1).inverted);
+    EXPECT_FALSE(screen.PixelAt(first_cell_x + 10, first_grid_line + 1).inverted);
+    EXPECT_TRUE(screen.PixelAt(first_cell_x + 10, first_grid_line + 1).underlined);
+    EXPECT_FALSE(screen.PixelAt(first_cell_x + 20, first_grid_line).inverted);
+    EXPECT_FALSE(screen.PixelAt(first_cell_x, first_grid_line + 2).inverted);
+    EXPECT_TRUE(contains(line_of(screen, 23), "select"));
+
+    press({"esc"});
+    const Screen plain = draw();
+    EXPECT_TRUE(plain.PixelAt(first_cell_x + 10, first_grid_line + 1).inverted);
+    EXPECT_FALSE(plain.PixelAt(first_cell_x + 10, first_grid_line + 1).underlined);
+    EXPECT_FALSE(plain.PixelAt(first_cell_x, first_grid_line).inverted);
+}
+
+TEST_F(ScreenViewTest, SelectionStaysWhileCommandIsTyped) {
+    press({"f3", "down", ":"});
+    const Screen screen = draw();
+    EXPECT_TRUE(screen.PixelAt(first_cell_x, first_grid_line).inverted);
+    EXPECT_TRUE(screen.PixelAt(first_cell_x, first_grid_line + 1).underlined);
+}
+
 TEST_F(ScreenViewTest, ScrollsToTheRight) {
     press_times("right", 7);
     const Screen screen = draw();

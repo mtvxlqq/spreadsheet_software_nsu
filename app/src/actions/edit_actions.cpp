@@ -3,9 +3,9 @@
 #include <memory>
 
 #include "actions/no_args.hpp"
+#include "app/clear_range_command.hpp"
 #include "app/modes/edit_mode.hpp"
 #include "app/session.hpp"
-#include "app/set_cell_command.hpp"
 
 namespace ss::app {
 
@@ -28,13 +28,12 @@ std::string_view ClearCellAction::name() const {
 }
 
 std::string_view ClearCellAction::description() const {
-    return "очистить ячейку";
+    return "очистить ячейку или выделенное";
 }
 
 void ClearCellAction::execute(Session& session, std::span<const std::string> args) const {
     expect_no_args(name(), args);
-    // пустой ввод очищает ячейку, а через команду это потом можно будет отменить
-    session.apply_edit(std::make_unique<SetCellCommand>(session.cursor(), ""));
+    session.apply_edit(std::make_unique<ClearRangeCommand>(session.target_range()));
 }
 
 std::string_view UndoAction::name() const {

@@ -3,6 +3,7 @@
 #include <memory>
 #include <string>
 
+#include "actions/clipboard_actions.hpp"
 #include "actions/edit_actions.hpp"
 #include "actions/file_actions.hpp"
 #include "actions/mode_actions.hpp"
@@ -47,6 +48,9 @@ void register_actions(ActionRegistry& registry) {
     registry.add("clear-cell", [] { return std::make_unique<ClearCellAction>(); });
     registry.add("undo", [] { return std::make_unique<UndoAction>(); });
     registry.add("redo", [] { return std::make_unique<RedoAction>(); });
+    registry.add("start-selection", [] { return std::make_unique<StartSelectionAction>(); });
+    registry.add("copy", [] { return std::make_unique<CopyAction>(); });
+    registry.add("paste", [] { return std::make_unique<PasteAction>(); });
     registry.add("format", [] { return std::make_unique<FormatAction>(); });
     registry.add("align", [] { return std::make_unique<AlignAction>(); });
     add_width_step(registry, "column-wider", "столбец шире", 1);

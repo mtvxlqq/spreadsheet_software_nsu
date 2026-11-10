@@ -11,6 +11,11 @@ public:
     std::string_view name() const override;
     std::string_view description() const override;
     void execute(Session& session, std::span<const std::string> args) const override;
+
+    // команду набирают уже при выделении, и работает она с ним
+    bool keeps_selection() const override {
+        return true;
+    }
 };
 
 class ShowHelpAction final : public Action {

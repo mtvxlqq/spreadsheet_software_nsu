@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -91,7 +92,17 @@ Element render_cell(const SessionView& view, CellAddress address, int width) {
     const Overflow overflow = shown.is_number ? Overflow::Hashes : Overflow::Cut;
     // последняя позиция пустая, чтобы соседние столбцы не слипались
     Element cell = ftxui::text(fit_cell(shown.text, width - 1, shown.align, overflow) + " ");
-    return address == view.cursor() ? std::move(cell) | ftxui::inverted : cell;
+    const bool is_cursor = address == view.cursor();
+    const std::optional<ss::core::Range> selection = view.selection();
+    if (!selection) {
+        return is_cursor ? std::move(cell) | ftxui::inverted : cell;
+    }
+    // Выделение залито, а ячейка с курсором в нём наоборот светлая
+    // и подчёркнута, как в Excel: так видно, какой угол сейчас двигается.
+    if (is_cursor) {
+        return std::move(cell) | ftxui::underlined | ftxui::bold;
+    }
+    return selection->contains(address) ? std::move(cell) | ftxui::inverted : cell;
 }
 
 Element render_row(const SessionView& view, const std::vector<Column>& columns, int row) {

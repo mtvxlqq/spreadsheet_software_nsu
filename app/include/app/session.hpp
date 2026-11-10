@@ -10,6 +10,7 @@
 #include <string_view>
 #include <vector>
 
+#include "app/clipboard.hpp"
 #include "app/keymap.hpp"
 #include "app/line_editor.hpp"
 #include "app/mode.hpp"
@@ -59,8 +60,16 @@ public:
     // курсор не уходит за края листа, экран прокручивается за ним
     void move_cursor(int d_row, int d_col);
     void set_cursor(ss::core::CellAddress cell);
-    // Ячейки, с которыми работает команда. Пока это ячейка под курсором.
+    // Выделение от ячейки под курсором, дальше оно тянется за курсором.
+    // Снимать его не нужно: оно пропадает само, как только режим перестаёт
+    // его держать (Mode::keeps_selection).
+    void start_selection();
+    // Ячейки, с которыми работает команда: выделенный диапазон, а если
+    // выделения нет, ячейка под курсором.
     ss::core::Range target_range() const;
+    void set_clipboard(Clipboard clipboard);
+    // пусто, пока ничего не копировали
+    const std::optional<Clipboard>& clipboard() const;
 
     // Внутри handle_key режим сменится только после выхода из старого
     // режима, иначе мы бы удалили объект, чей метод сейчас выполняется.
@@ -118,6 +127,7 @@ public:
     const ss::core::Spreadsheet& document() const override;
     const ss::core::NumberFormatRegistry& number_formats() const override;
     ss::core::CellAddress cursor() const override;
+    std::optional<ss::core::Range> selection() const override;
     const Viewport& viewport() const override;
     std::string_view mode_name() const override;
     bool edits_cell() const override;
@@ -141,6 +151,7 @@ private:
     void set_document(std::unique_ptr<ss::core::Spreadsheet> document);
     // после правки ширина столбцов могла измениться
     void keep_cursor_visible();
+    void drop_unused_selection();
 
     const ss::core::FunctionProvider& functions_;
     const ss::core::FormatRegistry& formats_;
@@ -149,6 +160,9 @@ private:
     Keymap keymap_;
     std::unique_ptr<ss::core::Spreadsheet> document_;
     ss::core::CellAddress cursor_;
+    // угол выделения, второй угол это курсор; пусто, если выделения нет
+    std::optional<ss::core::CellAddress> selection_anchor_;
+    std::optional<Clipboard> clipboard_;
     Viewport viewport_;
     LineEditor edit_line_;
     Status status_;

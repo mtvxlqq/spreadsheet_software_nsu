@@ -16,6 +16,11 @@ public:
     std::string_view description() const override;
     void execute(Session& session, std::span<const std::string> args) const override;
 
+    // чтобы подбирать ширину выделенных столбцов несколькими нажатиями
+    bool keeps_selection() const override {
+        return true;
+    }
+
 private:
     std::string name_;
     std::string description_;

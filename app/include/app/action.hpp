@@ -25,6 +25,13 @@ public:
     // Ошибки бросает как ss::core::Error, Session покажет их в статусе.
     virtual void execute(Session& session, std::span<const std::string> args) const = 0;
 
+    // Остаётся ли выделение после действия. Так у перемещений: ими выделение
+    // и растягивают. Обычное действие работает с выделенным диапазоном
+    // и снимает его, поэтому новому действию тут ничего менять не нужно.
+    virtual bool keeps_selection() const {
+        return false;
+    }
+
 protected:
     Action() = default;
 };

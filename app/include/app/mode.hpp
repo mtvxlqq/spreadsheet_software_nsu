@@ -15,7 +15,7 @@ public:
     Mode(Mode&&) = delete;
     Mode& operator=(Mode&&) = delete;
 
-    // "normal", "edit", "command", "help"
+    // "normal", "edit", "command", "help", "select"
     virtual std::string_view name() const = 0;
     // Сменить режим можно через session.set_mode: новый режим включится
     // после возврата из этого метода, так что *this до конца жив.
@@ -34,6 +34,12 @@ public:
     }
 
     virtual bool uses_command_line() const {
+        return false;
+    }
+
+    // В этом режиме выделение остаётся. При переходе в любой другой режим
+    // сеанс снимает его сам.
+    virtual bool keeps_selection() const {
         return false;
     }
 

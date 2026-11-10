@@ -1,5 +1,6 @@
 add_library(ss_app STATIC
     src/action_registry.cpp
+    src/actions/clipboard_actions.cpp
     src/actions/edit_actions.cpp
     src/actions/file_actions.cpp
     src/actions/mode_actions.cpp
@@ -8,6 +9,7 @@ add_library(ss_app STATIC
     src/actions/style_actions.cpp
     src/actions/width_actions.cpp
     src/cell_presenter.cpp
+    src/clear_range_command.cpp
     src/document_io.cpp
     src/keymap.cpp
     src/line_editor.cpp
@@ -15,6 +17,8 @@ add_library(ss_app STATIC
     src/modes/edit_mode.cpp
     src/modes/help_mode.cpp
     src/modes/normal_mode.cpp
+    src/modes/select_mode.cpp
+    src/paste_command.cpp
     src/planned_command.cpp
     src/register_actions.cpp
     src/session.cpp

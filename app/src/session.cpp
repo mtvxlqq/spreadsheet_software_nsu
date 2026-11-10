@@ -45,7 +45,16 @@ void Session::handle_key(std::string_view key) {
     if (pending_mode_) {
         mode_ = std::move(pending_mode_);
     }
+    drop_unused_selection();
     notify();
+}
+
+// Выделение живёт, пока режим его держит. Так его не забудет снять
+// ни один режим и ни одно действие.
+void Session::drop_unused_selection() {
+    if (!mode_->keeps_selection()) {
+        selection_anchor_.reset();
+    }
 }
 
 void Session::resize(int visible_rows, int grid_width) {
@@ -74,8 +83,20 @@ void Session::set_cursor(ss::core::CellAddress cell) {
     keep_cursor_visible();
 }
 
+void Session::start_selection() {
+    selection_anchor_ = cursor_;
+}
+
 ss::core::Range Session::target_range() const {
-    return {cursor_, cursor_};
+    return {selection_anchor_.value_or(cursor_), cursor_};
+}
+
+void Session::set_clipboard(Clipboard clipboard) {
+    clipboard_ = std::move(clipboard);
+}
+
+const std::optional<Clipboard>& Session::clipboard() const {
+    return clipboard_;
 }
 
 void Session::set_mode(std::unique_ptr<Mode> mode) {
@@ -83,6 +104,7 @@ void Session::set_mode(std::unique_ptr<Mode> mode) {
         pending_mode_ = std::move(mode);
     } else {
         mode_ = std::move(mode);
+        drop_unused_selection();
     }
 }
 
@@ -189,6 +211,10 @@ void Session::set_document(std::unique_ptr<ss::core::Spreadsheet> document) {
     // команды из стека помнят ячейки старого документа
     history_.clear();
     set_cursor({.row = 0, .col = 0});
+    // файл мог догрузиться, пока шло выделение: начинаем его заново с A1
+    if (selection_anchor_) {
+        selection_anchor_ = cursor_;
+    }
 }
 
 void Session::subscribe(SessionObserver* observer) {
@@ -221,6 +247,13 @@ const ss::core::NumberFormatRegistry& Session::number_formats() const {
 
 ss::core::CellAddress Session::cursor() const {
     return cursor_;
+}
+
+std::optional<ss::core::Range> Session::selection() const {
+    if (!selection_anchor_) {
+        return std::nullopt;
+    }
+    return ss::core::Range(*selection_anchor_, cursor_);
 }
 
 const Viewport& Session::viewport() const {
