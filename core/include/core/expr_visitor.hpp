@@ -4,6 +4,7 @@ namespace ss::core {
 
 class NumberLit;
 class StringLit;
+class ErrorLit;
 class RefExpr;
 class RangeExpr;
 class UnaryExpr;
@@ -22,6 +23,7 @@ public:
 
     virtual void visit(const NumberLit& node) = 0;
     virtual void visit(const StringLit& node) = 0;
+    virtual void visit(const ErrorLit& node) = 0;
     virtual void visit(const RefExpr& node) = 0;
     virtual void visit(const RangeExpr& node) = 0;
     virtual void visit(const UnaryExpr& node) = 0;

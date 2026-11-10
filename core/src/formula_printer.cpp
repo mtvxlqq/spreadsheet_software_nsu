@@ -88,6 +88,11 @@ void FormulaPrinter::visit(const StringLit& node) {
     precedence_ = primary_precedence;
 }
 
+void FormulaPrinter::visit(const ErrorLit& node) {
+    text_ = std::string(error_text(node.code()));
+    precedence_ = primary_precedence;
+}
+
 void FormulaPrinter::visit(const RefExpr& node) {
     text_ = node.ref().to_string();
     precedence_ = primary_precedence;

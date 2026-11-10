@@ -15,6 +15,7 @@ add_executable(core_tests
     core/test_address.cpp
     core/test_cell_input.cpp
     core/test_csv.cpp
+    core/test_error_literal.cpp
     core/test_evaluator.cpp
     core/test_extensions.cpp
     core/test_format_registry.cpp

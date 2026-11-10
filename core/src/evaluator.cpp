@@ -99,6 +99,10 @@ void Evaluator::visit(const StringLit& node) {
     set_result(make_string(node.text()));
 }
 
+void Evaluator::visit(const ErrorLit& node) {
+    set_result(make_error(node.code()));
+}
+
 void Evaluator::visit(const RefExpr& node) {
     const CellAddress address = node.ref().addr;
     if (!address.is_valid()) {

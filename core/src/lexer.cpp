@@ -21,6 +21,8 @@ bool is_word_char(char c) {
     return is_word_start(c) || is_ascii_digit(c);
 }
 
+constexpr std::string_view ref_error = "#REF!";
+
 struct OperatorSpelling {
     std::string_view text;
     TokenType type;
@@ -68,6 +70,12 @@ Token Lexer::next() {
     }
     if (is_word_start(c)) {
         return read_word();
+    }
+    // другие коды ошибок в формуле не нужны, '#' сам по себе остаётся ошибкой
+    if (to_upper_ascii(text_.substr(pos_, ref_error.size())) == ref_error) {
+        const std::size_t start = pos_;
+        pos_ += ref_error.size();
+        return Token{.type = TokenType::RefError, .text = std::string(ref_error), .pos = start};
     }
     return read_operator();
 }

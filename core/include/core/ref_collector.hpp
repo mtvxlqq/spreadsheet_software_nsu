@@ -25,6 +25,7 @@ public:
 
     void visit(const NumberLit& node) override;
     void visit(const StringLit& node) override;
+    void visit(const ErrorLit& node) override;
     void visit(const RefExpr& node) override;
     void visit(const RangeExpr& node) override;
     void visit(const UnaryExpr& node) override;

@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "core/address.hpp"
+#include "core/value.hpp"
 
 namespace ss::core {
 
@@ -64,6 +65,23 @@ public:
 
 private:
     std::string text_;
+};
+
+// #REF! прямо в формуле: так выглядит ссылка на удалённую ячейку. У такой
+// ссылки уже нет адреса, а формула хранится текстом и должна читаться обратно.
+class ErrorLit final : public Expr {
+public:
+    explicit ErrorLit(ErrorCode code) : code_(code) {}
+
+    ErrorCode code() const {
+        return code_;
+    }
+
+    void accept(ExprVisitor& visitor) const override;
+    ExprPtr clone() const override;
+
+private:
+    ErrorCode code_;
 };
 
 class RefExpr final : public Expr {
@@ -169,6 +187,9 @@ public:
     const Function* function() const {
         return function_.get();
     }
+
+    // тот же вызов с другими аргументами, нужен при сдвиге ссылок
+    ExprPtr with_args(std::vector<ExprPtr> args) const;
 
     void accept(ExprVisitor& visitor) const override;
     ExprPtr clone() const override;

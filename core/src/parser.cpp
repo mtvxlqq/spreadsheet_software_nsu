@@ -131,6 +131,9 @@ ExprPtr Parser::parse_primary() {
             return std::make_unique<StringLit>(advance().text);
         case TokenType::Ref:
             return parse_reference();
+        case TokenType::RefError:
+            advance();
+            return std::make_unique<ErrorLit>(ErrorCode::Ref);
         case TokenType::Ident:
             return parse_call();
         case TokenType::LParen: {

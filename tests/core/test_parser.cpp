@@ -86,6 +86,10 @@ public:
         text_ = "\"" + node.text() + "\"";
     }
 
+    void visit(const ss::core::ErrorLit& /*node*/) override {
+        text_ = "#REF!";
+    }
+
     void visit(const RefExpr& node) override {
         text_ = node.ref().to_string();
     }
@@ -161,6 +165,7 @@ const FunctionCallExpr& as_call(const ExprPtr& expr) {
         const FunctionCallExpr* found = nullptr;
         void visit(const NumberLit& /*node*/) override {}
         void visit(const StringLit& /*node*/) override {}
+        void visit(const ss::core::ErrorLit& /*node*/) override {}
         void visit(const RefExpr& /*node*/) override {}
         void visit(const RangeExpr& /*node*/) override {}
         void visit(const UnaryExpr& /*node*/) override {}

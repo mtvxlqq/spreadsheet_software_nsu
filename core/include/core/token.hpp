@@ -9,6 +9,7 @@ enum class TokenType {
     Number,  // 12, 3.5, .5, 1e-3
     String,
     Ref,    // A1, $B$2
+    RefError,  // #REF!
     Ident,  // имя функции
     Plus,
     Minus,

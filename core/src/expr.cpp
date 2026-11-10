@@ -20,6 +20,14 @@ ExprPtr StringLit::clone() const {
     return std::make_unique<StringLit>(text_);
 }
 
+void ErrorLit::accept(ExprVisitor& visitor) const {
+    visitor.visit(*this);
+}
+
+ExprPtr ErrorLit::clone() const {
+    return std::make_unique<ErrorLit>(code_);
+}
+
 void RefExpr::accept(ExprVisitor& visitor) const {
     visitor.visit(*this);
 }
@@ -62,6 +70,10 @@ ExprPtr FunctionCallExpr::clone() const {
     for (const ExprPtr& arg : args_) {
         args.push_back(arg->clone());
     }
+    return std::make_unique<FunctionCallExpr>(name_, std::move(args), function_);
+}
+
+ExprPtr FunctionCallExpr::with_args(std::vector<ExprPtr> args) const {
     return std::make_unique<FunctionCallExpr>(name_, std::move(args), function_);
 }
 

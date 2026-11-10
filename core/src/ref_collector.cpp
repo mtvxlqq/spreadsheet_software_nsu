@@ -17,6 +17,8 @@ void RefCollector::visit(const NumberLit& /*node*/) {}
 
 void RefCollector::visit(const StringLit& /*node*/) {}
 
+void RefCollector::visit(const ErrorLit& /*node*/) {}
+
 void RefCollector::visit(const RefExpr& node) {
     // ссылка за пределы листа всё равно даст #REF!, следить за ней незачем
     if (node.ref().addr.is_valid()) {
