@@ -10,8 +10,7 @@
 
 namespace ss::tui {
 
-TuiApp::TuiApp(ftxui::App& app, ss::app::Session& session, const ss::core::NumberFormat& format)
-    : app_(app), session_(session), format_(format) {
+TuiApp::TuiApp(ftxui::App& app, ss::app::Session& session) : app_(app), session_(session) {
     session_.subscribe(this);
 }
 
@@ -73,7 +72,7 @@ ftxui::Element TuiApp::render() {
     try {
         const ftxui::Dimensions size = ftxui::Terminal::Size();
         sync_size(size);
-        return render_screen(session_.view(), format_, size.dimx);
+        return render_screen(session_.view(), size.dimx);
     } catch (...) {
         stop_with_failure();
         return ftxui::text("");

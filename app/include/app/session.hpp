@@ -24,6 +24,7 @@
 namespace ss::core {
 class FormatRegistry;
 class FunctionProvider;
+class NumberFormatRegistry;
 }  // namespace ss::core
 
 namespace ss::app {
@@ -42,9 +43,10 @@ public:
     // сделать с сеансом в главном потоке.
     using BackgroundWork = std::function<std::function<void(Session&)>(std::stop_token)>;
 
-    // functions, formats, actions и dispatcher должны жить дольше сеанса
+    // реестры и dispatcher должны жить дольше сеанса
     Session(const ss::core::FunctionProvider& functions, const ss::core::FormatRegistry& formats,
-            const ActionRegistry& actions, Keymap keymap, MainThreadDispatcher& dispatcher);
+            const ss::core::NumberFormatRegistry& number_formats, const ActionRegistry& actions,
+            Keymap keymap, MainThreadDispatcher& dispatcher);
     ~Session() override;
 
     // Вход от TUI. Ошибки (ss::core::Error) не вылетают наружу,
@@ -56,6 +58,8 @@ public:
     // курсор не уходит за края листа, экран прокручивается за ним
     void move_cursor(int d_row, int d_col);
     void set_cursor(ss::core::CellAddress cell);
+    // Ячейки, с которыми работает команда. Пока это ячейка под курсором.
+    ss::core::Range target_range() const;
 
     // Внутри handle_key режим сменится только после выхода из старого
     // режима, иначе мы бы удалили объект, чей метод сейчас выполняется.
@@ -109,6 +113,7 @@ public:
     }
 
     const ss::core::Spreadsheet& document() const override;
+    const ss::core::NumberFormatRegistry& number_formats() const override;
     ss::core::CellAddress cursor() const override;
     const Viewport& viewport() const override;
     std::string_view mode_name() const override;
@@ -133,6 +138,7 @@ private:
 
     const ss::core::FunctionProvider& functions_;
     const ss::core::FormatRegistry& formats_;
+    const ss::core::NumberFormatRegistry& number_formats_;
     const ActionRegistry& actions_;
     Keymap keymap_;
     std::unique_ptr<ss::core::Spreadsheet> document_;

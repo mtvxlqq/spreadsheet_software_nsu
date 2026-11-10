@@ -8,6 +8,7 @@
 #include "actions/mode_actions.hpp"
 #include "actions/navigation_actions.hpp"
 #include "actions/quit_actions.hpp"
+#include "actions/style_actions.hpp"
 #include "app/action_registry.hpp"
 
 namespace ss::app {
@@ -39,6 +40,8 @@ void register_actions(ActionRegistry& registry) {
     registry.add("clear-cell", [] { return std::make_unique<ClearCellAction>(); });
     registry.add("undo", [] { return std::make_unique<UndoAction>(); });
     registry.add("redo", [] { return std::make_unique<RedoAction>(); });
+    registry.add("format", [] { return std::make_unique<FormatAction>(); });
+    registry.add("align", [] { return std::make_unique<AlignAction>(); });
     registry.add("command-mode", [] { return std::make_unique<CommandModeAction>(); });
     registry.add("show-help", [] { return std::make_unique<ShowHelpAction>(); });
     registry.add("save", [] { return std::make_unique<SaveAction>(); });

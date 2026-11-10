@@ -21,6 +21,7 @@ add_library(ss_core STATIC
     src/io/register_formats.cpp
     src/lexer.cpp
     src/number_format.cpp
+    src/number_format_registry.cpp
     src/parser.cpp
     src/recalculator.cpp
     src/ref_collector.cpp

@@ -70,23 +70,24 @@ Element render_column_header(const SessionView& view) {
     return ftxui::hbox(std::move(cells));
 }
 
-Element render_cell(const SessionView& view, const ss::core::NumberFormat& format,
-                    CellAddress address) {
-    const std::string text = CellPresenter::text(view.document(), address, format);
-    const Align align = CellPresenter::align(view.document(), address);
+Element render_cell(const SessionView& view, CellAddress address) {
+    const ss::app::CellView shown =
+        CellPresenter::present(view.document(), address, view.number_formats());
+    const Overflow overflow = shown.is_number ? Overflow::Hashes : Overflow::Cut;
     // последняя позиция пустая, чтобы соседние столбцы не слипались
-    Element cell = ftxui::text(fit_cell(text, column_width - 1, align) + " ");
+    Element cell =
+        ftxui::text(fit_cell(shown.text, column_width - 1, shown.align, overflow) + " ");
     return address == view.cursor() ? std::move(cell) | ftxui::inverted : cell;
 }
 
-Element render_row(const SessionView& view, const ss::core::NumberFormat& format, int row) {
+Element render_row(const SessionView& view, int row) {
     Elements cells;
     const std::string number =
         fit_cell(std::to_string(row + 1), row_header_width - 1, Align::Right) + " ";
     cells.push_back(ftxui::text(number) | ftxui::bold);
     const ss::app::Viewport& viewport = view.viewport();
     for (int col = viewport.first_col(); col < end_col(viewport); ++col) {
-        cells.push_back(render_cell(view, format, {.row = row, .col = col}));
+        cells.push_back(render_cell(view, {.row = row, .col = col}));
     }
     return ftxui::hbox(std::move(cells));
 }
@@ -127,21 +128,21 @@ Element render_help(const SessionView& view) {
     return ftxui::vbox(std::move(lines));
 }
 
-Element render_table(const SessionView& view, const ss::core::NumberFormat& format, int width) {
+Element render_table(const SessionView& view, int width) {
     Elements lines;
     lines.push_back(render_formula_bar(view, width));
     lines.push_back(render_column_header(view));
     const ss::app::Viewport& viewport = view.viewport();
     for (int row = viewport.first_row(); row < end_row(viewport); ++row) {
-        lines.push_back(render_row(view, format, row));
+        lines.push_back(render_row(view, row));
     }
     return ftxui::vbox(std::move(lines));
 }
 
 }  // namespace
 
-Element render_screen(const SessionView& view, const ss::core::NumberFormat& format, int width) {
-    Element body = view.shows_help() ? render_help(view) : render_table(view, format, width);
+Element render_screen(const SessionView& view, int width) {
+    Element body = view.shows_help() ? render_help(view) : render_table(view, width);
     return ftxui::vbox({
         std::move(body) | ftxui::flex,
         render_status_bar(view, width),

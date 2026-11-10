@@ -5,6 +5,7 @@ add_library(ss_app STATIC
     src/actions/mode_actions.cpp
     src/actions/navigation_actions.cpp
     src/actions/quit_actions.cpp
+    src/actions/style_actions.cpp
     src/cell_presenter.cpp
     src/document_io.cpp
     src/keymap.cpp
@@ -17,6 +18,7 @@ add_library(ss_app STATIC
     src/register_actions.cpp
     src/session.cpp
     src/set_cell_command.cpp
+    src/set_style_command.cpp
     src/task_runner.cpp
     src/undo_stack.cpp
     src/viewport.cpp

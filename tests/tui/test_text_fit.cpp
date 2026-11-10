@@ -12,6 +12,7 @@ using ss::app::Align;
 using ss::tui::caret_window;
 using ss::tui::CaretWindow;
 using ss::tui::fit_cell;
+using ss::tui::Overflow;
 
 namespace {
 
@@ -42,7 +43,29 @@ TEST(FitCellTest, LongTextIsCut) {
 }
 
 TEST(FitCellTest, LongNumberBecomesHashes) {
-    EXPECT_EQ(fit_cell("123456", 4, Align::Right), "####");
+    EXPECT_EQ(fit_cell("123456", 4, Align::Right, Overflow::Hashes), "####");
+    // решётки зависят от того, число ли это, а не от выравнивания
+    EXPECT_EQ(fit_cell("123456", 4, Align::Left, Overflow::Hashes), "####");
+    EXPECT_EQ(fit_cell("123456", 4, Align::Center, Overflow::Hashes), "####");
+    EXPECT_EQ(fit_cell("abcdef", 4, Align::Right), "abcd");
+    // а что влезло, остаётся как есть
+    EXPECT_EQ(fit_cell("1234", 4, Align::Left, Overflow::Hashes), "1234");
+}
+
+TEST(FitCellTest, CenterSplitsPaddingEvenly) {
+    EXPECT_EQ(fit_cell("ab", 6, Align::Center), "  ab  ");
+    // лишний пробел уходит вправо
+    EXPECT_EQ(fit_cell("abc", 6, Align::Center), " abc  ");
+    EXPECT_EQ(fit_cell("abcdef", 6, Align::Center), "abcdef");
+    EXPECT_EQ(fit_cell("abcdefgh", 6, Align::Center), "abcdef");
+    EXPECT_EQ(fit_cell("", 3, Align::Center), "   ");
+}
+
+// ширина считается в позициях экрана, а не в байтах
+TEST(FitCellTest, CenterCountsCyrillicByCharacters) {
+    EXPECT_EQ(fit_cell("да", 6, Align::Center), "  да  ");
+    EXPECT_EQ(fit_cell("кот", 8, Align::Center), "  кот   ");
+    EXPECT_EQ(fit_cell("日本", 6, Align::Center), " 日本 ");
 }
 
 TEST(FitCellTest, CyrillicIsNotBroken) {

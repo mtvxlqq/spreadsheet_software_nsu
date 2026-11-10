@@ -12,8 +12,9 @@
 #include "core/address.hpp"
 
 namespace ss::core {
+class NumberFormatRegistry;
 class Spreadsheet;
-}
+}  // namespace ss::core
 
 namespace ss::app {
 
@@ -28,6 +29,8 @@ public:
     SessionView& operator=(SessionView&&) = delete;
 
     virtual const ss::core::Spreadsheet& document() const = 0;
+    // по ним CellPresenter показывает числа
+    virtual const ss::core::NumberFormatRegistry& number_formats() const = 0;
     virtual ss::core::CellAddress cursor() const = 0;
     virtual const Viewport& viewport() const = 0;
     virtual std::string_view mode_name() const = 0;

@@ -6,23 +6,31 @@
 #include "core/cell_style.hpp"
 
 namespace ss::core {
-class NumberFormat;
+class NumberFormatRegistry;
 class Spreadsheet;
 }  // namespace ss::core
 
 namespace ss::app {
 
-// выравнивание теперь часть стиля ячейки, а стиль живёт в документе
+// выравнивание это часть стиля ячейки, а стиль живёт в документе
 using Align = ss::core::Align;
+
+// что нарисовать в ячейке таблицы
+struct CellView {
+    std::string text;
+    Align align = Align::Left;
+    // число, которое не влезло в столбец, рисуется решётками, а не обрезается
+    bool is_number = false;
+};
 
 // Как показать ячейку в таблице. Это решает app, чтобы в TUI осталось
 // только рисование.
 class CellPresenter final {
 public:
-    static std::string text(const ss::core::Spreadsheet& document, ss::core::CellAddress address,
-                            const ss::core::NumberFormat& format);
-    // числа прижимаем вправо, всё остальное влево, как в Excel
-    static Align align(const ss::core::Spreadsheet& document, ss::core::CellAddress address);
+    // Формат чисел и выравнивание берутся из стиля ячейки. Если выравнивание
+    // в стиле не задано, числа прижимаются вправо, остальное влево, как в Excel.
+    static CellView present(const ss::core::Spreadsheet& document, ss::core::CellAddress address,
+                            const ss::core::NumberFormatRegistry& formats);
 };
 
 }  // namespace ss::app

@@ -12,10 +12,12 @@
 namespace ss::app {
 
 Session::Session(const ss::core::FunctionProvider& functions,
-                 const ss::core::FormatRegistry& formats, const ActionRegistry& actions,
-                 Keymap keymap, MainThreadDispatcher& dispatcher)
+                 const ss::core::FormatRegistry& formats,
+                 const ss::core::NumberFormatRegistry& number_formats,
+                 const ActionRegistry& actions, Keymap keymap, MainThreadDispatcher& dispatcher)
     : functions_(functions),
       formats_(formats),
+      number_formats_(number_formats),
       actions_(actions),
       keymap_(std::move(keymap)),
       document_(std::make_unique<ss::core::Spreadsheet>(functions)),
@@ -66,6 +68,10 @@ void Session::set_cursor(ss::core::CellAddress cell) {
     cell.check_valid();
     cursor_ = cell;
     viewport_.ensure_visible(cursor_);
+}
+
+ss::core::Range Session::target_range() const {
+    return {cursor_, cursor_};
 }
 
 void Session::set_mode(std::unique_ptr<Mode> mode) {
@@ -195,6 +201,10 @@ void Session::notify() {
 
 const ss::core::Spreadsheet& Session::document() const {
     return *document_;
+}
+
+const ss::core::NumberFormatRegistry& Session::number_formats() const {
+    return number_formats_;
 }
 
 ss::core::CellAddress Session::cursor() const {

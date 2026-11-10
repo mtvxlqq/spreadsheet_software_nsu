@@ -4,8 +4,8 @@
 
 namespace ss::core {
 
-// Как показывать число в ячейке (паттерн Strategy).
-// На втором этапе сюда добавятся FixedFormat и PercentFormat.
+// Как показывать число в ячейке (паттерн Strategy). Какой формат у ячейки,
+// записано в её стиле, а объект по этой записи создаёт NumberFormatRegistry.
 class NumberFormat {
 public:
     virtual ~NumberFormat() = default;
@@ -24,6 +24,28 @@ protected:
 class GeneralFormat final : public NumberFormat {
 public:
     std::string format(double value) const override;
+};
+
+// ровно digits знаков после точки: 3.14159 при digits = 2 это "3.14"
+class FixedFormat final : public NumberFormat {
+public:
+    explicit FixedFormat(int digits) : digits_(digits) {}
+
+    std::string format(double value) const override;
+
+private:
+    int digits_;
+};
+
+// доля в процентах: 0.256 при digits = 1 это "25.6%"
+class PercentFormat final : public NumberFormat {
+public:
+    explicit PercentFormat(int digits) : digits_(digits) {}
+
+    std::string format(double value) const override;
+
+private:
+    int digits_;
 };
 
 }  // namespace ss::core

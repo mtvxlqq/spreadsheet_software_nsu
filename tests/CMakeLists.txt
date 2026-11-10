@@ -24,6 +24,7 @@ add_executable(core_tests
     core/test_graph.cpp
     core/test_lexer.cpp
     core/test_native_format.cpp
+    core/test_number_format.cpp
     core/test_parser.cpp
     core/test_printer.cpp
     core/test_recalculator.cpp
@@ -47,6 +48,7 @@ add_executable(app_tests
     app/test_keymap.cpp
     app/test_line_editor.cpp
     app/test_session_keys.cpp
+    app/test_style.cpp
     app/test_task_runner.cpp
     app/test_undo.cpp
     app/test_viewport.cpp

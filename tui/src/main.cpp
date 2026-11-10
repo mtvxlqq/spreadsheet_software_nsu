@@ -20,7 +20,7 @@
 #include "core/function_registry.hpp"
 #include "core/io/format_registry.hpp"
 #include "core/io/register_formats.hpp"
-#include "core/number_format.hpp"
+#include "core/number_format_registry.hpp"
 #include "tui/ftxui_dispatcher.hpp"
 #include "tui/tui_app.hpp"
 
@@ -73,9 +73,10 @@ int run_program(int argc, char** argv) {
     ss::core::register_builtins(functions);
     ss::core::FormatRegistry formats;
     ss::core::register_formats(formats);
+    ss::core::NumberFormatRegistry number_formats;
+    ss::core::register_number_formats(number_formats);
     ss::app::ActionRegistry actions;
     ss::app::register_actions(actions);
-    ss::core::GeneralFormat format;
 
     ss::app::KeymapLoadResult keymap = ss::app::Keymap::load(keys_config_path(), actions.names());
 
@@ -83,8 +84,9 @@ int run_program(int argc, char** argv) {
     // фоновых потоков, так что они не обратятся к уже удалённому App.
     ftxui::App app = ftxui::App::Fullscreen();
     ss::tui::FtxuiDispatcher dispatcher(app);
-    Session session(functions, formats, actions, std::move(keymap.keymap), dispatcher);
-    ss::tui::TuiApp tui(app, session, format);
+    Session session(functions, formats, number_formats, actions, std::move(keymap.keymap),
+                    dispatcher);
+    ss::tui::TuiApp tui(app, session);
 
     if (!keymap.warnings.empty()) {
         session.set_status(warnings_text(keymap.warnings), Status::Kind::Error);

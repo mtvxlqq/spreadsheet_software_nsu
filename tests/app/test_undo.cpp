@@ -19,6 +19,7 @@
 #include "core/function_registry.hpp"
 #include "core/io/format_registry.hpp"
 #include "core/io/register_formats.hpp"
+#include "core/number_format_registry.hpp"
 #include "core/spreadsheet.hpp"
 #include "core/value.hpp"
 #include "support/manual_dispatcher.hpp"
@@ -56,6 +57,7 @@ protected:
     UndoSessionTest() {
         ss::core::register_builtins(functions);
         ss::core::register_formats(formats);
+        ss::core::register_number_formats(number_formats);
         ss::app::register_actions(actions);
         session.resize(20, 8);
     }
@@ -72,9 +74,11 @@ protected:
 
     ss::core::FunctionRegistry functions;
     ss::core::FormatRegistry formats;
+    ss::core::NumberFormatRegistry number_formats;
     ss::app::ActionRegistry actions;
     ss::test::ManualDispatcher dispatcher;
-    Session session{functions, formats, actions, ss::app::Keymap::defaults(), dispatcher};
+    Session session{functions, formats, number_formats, actions,
+                    ss::app::Keymap::defaults(), dispatcher};
 };
 
 }  // namespace

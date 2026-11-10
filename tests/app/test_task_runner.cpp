@@ -23,6 +23,7 @@
 #include "core/function_registry.hpp"
 #include "core/io/format_registry.hpp"
 #include "core/io/register_formats.hpp"
+#include "core/number_format_registry.hpp"
 #include "core/value.hpp"
 #include "support/manual_dispatcher.hpp"
 
@@ -138,12 +139,13 @@ protected:
     BackgroundLoadTest() {
         ss::core::register_builtins(functions);
         ss::core::register_formats(formats);
+        ss::core::register_number_formats(number_formats);
         ss::app::register_actions(actions);
         const std::string test_name = ::testing::UnitTest::GetInstance()->current_test_info()->name();
         dir = fs::temp_directory_path() / ("ss_background_" + test_name);
         fs::remove_all(dir);
         fs::create_directories(dir);
-        session = std::make_unique<Session>(functions, formats, actions,
+        session = std::make_unique<Session>(functions, formats, number_formats, actions,
                                             ss::app::Keymap::defaults(), dispatcher);
     }
 
@@ -185,6 +187,7 @@ protected:
 
     ss::core::FunctionRegistry functions;
     ss::core::FormatRegistry formats;
+    ss::core::NumberFormatRegistry number_formats;
     ss::app::ActionRegistry actions;
     ManualDispatcher dispatcher;
     std::unique_ptr<Session> session;

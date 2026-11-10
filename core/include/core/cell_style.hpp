@@ -5,7 +5,7 @@
 
 namespace ss::core {
 
-enum class Align { Left, Right };
+enum class Align { Left, Right, Center };
 
 // Как показать ячейку. На значение и на формулы не влияет.
 struct CellStyle {

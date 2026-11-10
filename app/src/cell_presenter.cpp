@@ -1,23 +1,21 @@
 #include "app/cell_presenter.hpp"
 
+#include "core/number_format_registry.hpp"
 #include "core/spreadsheet.hpp"
 #include "core/value.hpp"
 
 namespace ss::app {
 
-std::string CellPresenter::text(const ss::core::Spreadsheet& document,
+CellView CellPresenter::present(const ss::core::Spreadsheet& document,
                                 ss::core::CellAddress address,
-                                const ss::core::NumberFormat& format) {
-    return document.value(address)->display(format);
-}
-
-Align CellPresenter::align(const ss::core::Spreadsheet& document, ss::core::CellAddress address) {
+                                const ss::core::NumberFormatRegistry& formats) {
     const ss::core::ValuePtr value = document.value(address);
+    const ss::core::CellStyle& style = document.style(address);
     // у пустой ячейки as_number() тоже есть (это 0), её отдельно
-    if (!value->is_empty() && value->as_number().has_value()) {
-        return Align::Right;
-    }
-    return Align::Left;
+    const bool is_number = !value->is_empty() && value->as_number().has_value();
+    return {.text = value->display(*formats.create(style.format)),
+            .align = style.align.value_or(is_number ? Align::Right : Align::Left),
+            .is_number = is_number};
 }
 
 }  // namespace ss::app

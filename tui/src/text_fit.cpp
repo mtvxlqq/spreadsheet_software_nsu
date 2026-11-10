@@ -48,7 +48,7 @@ std::string join(const std::vector<std::string>& glyphs, std::size_t first, std:
 
 }  // namespace
 
-std::string fit_cell(std::string_view text, int width, ss::app::Align align) {
+std::string fit_cell(std::string_view text, int width, ss::app::Align align, Overflow overflow) {
     if (width <= 0) {
         return {};
     }
@@ -57,7 +57,7 @@ std::string fit_cell(std::string_view text, int width, ss::app::Align align) {
     for (const std::string& glyph : glyphs_of(text)) {
         const int glyph_width = ftxui::string_width(glyph);
         if (used + glyph_width > width) {
-            if (align == ss::app::Align::Right) {
+            if (overflow == Overflow::Hashes) {
                 return std::string(static_cast<std::size_t>(width), '#');
             }
             break;
@@ -65,8 +65,16 @@ std::string fit_cell(std::string_view text, int width, ss::app::Align align) {
         body += glyph;
         used += glyph_width;
     }
-    const std::string padding(static_cast<std::size_t>(width - used), ' ');
-    return align == ss::app::Align::Right ? padding + body : body + padding;
+    // при центрировании лишний пробел, если он есть, уходит вправо
+    const int free = width - used;
+    int left = 0;
+    if (align == ss::app::Align::Right) {
+        left = free;
+    } else if (align == ss::app::Align::Center) {
+        left = free / 2;
+    }
+    return std::string(static_cast<std::size_t>(left), ' ') + body +
+           std::string(static_cast<std::size_t>(free - left), ' ');
 }
 
 CaretWindow caret_window(std::string_view text, std::size_t caret, int width) {

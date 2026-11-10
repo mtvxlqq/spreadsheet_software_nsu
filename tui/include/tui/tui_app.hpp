@@ -12,17 +12,13 @@
 #include "app/session_observer.hpp"
 #include "tui/screen_layout.hpp"
 
-namespace ss::core {
-class NumberFormat;
-}
-
 namespace ss::tui {
 
 // Цикл событий: клавиши отдаёт сеансу, по его сигналу перерисовывает экран.
 class TuiApp final : public ss::app::SessionObserver {
 public:
-    // app, session и format должны жить дольше TuiApp
-    TuiApp(ftxui::App& app, ss::app::Session& session, const ss::core::NumberFormat& format);
+    // app и session должны жить дольше TuiApp
+    TuiApp(ftxui::App& app, ss::app::Session& session);
     ~TuiApp() override;
 
     // Работает до выхода из программы. Если внутри случилось то, что сеанс
@@ -39,7 +35,6 @@ private:
 
     ftxui::App& app_;
     ss::app::Session& session_;
-    const ss::core::NumberFormat& format_;
     std::optional<ScreenLayout> last_layout_;
     // Event::Custom уже в очереди, второй такой же не нужен
     bool redraw_posted_ = false;

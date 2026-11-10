@@ -19,7 +19,7 @@
 #include "core/function_registry.hpp"
 #include "core/io/format_registry.hpp"
 #include "core/io/register_formats.hpp"
-#include "core/number_format.hpp"
+#include "core/number_format_registry.hpp"
 #include "support/manual_dispatcher.hpp"
 #include "tui/screen_layout.hpp"
 #include "tui/screen_view.hpp"
@@ -51,6 +51,7 @@ protected:
     ScreenViewTest() {
         ss::core::register_builtins(functions);
         ss::core::register_formats(formats);
+        ss::core::register_number_formats(number_formats);
         ss::app::register_actions(actions);
         use_window(80, 24);
     }
@@ -63,7 +64,7 @@ protected:
     Screen draw(int width = 80, int height = 24) const {
         Screen screen =
             Screen::Create(ftxui::Dimension::Fixed(width), ftxui::Dimension::Fixed(height));
-        ftxui::Render(screen, render_screen(session.view(), format, width));
+        ftxui::Render(screen, render_screen(session.view(), width));
         return screen;
     }
 
@@ -90,10 +91,11 @@ protected:
 
     ss::core::FunctionRegistry functions;
     ss::core::FormatRegistry formats;
+    ss::core::NumberFormatRegistry number_formats;
     ss::app::ActionRegistry actions;
-    ss::core::GeneralFormat format;
     ss::test::ManualDispatcher dispatcher;
-    Session session{functions, formats, actions, ss::app::Keymap::defaults(), dispatcher};
+    Session session{functions, formats, number_formats, actions,
+                    ss::app::Keymap::defaults(), dispatcher};
 };
 
 }  // namespace
@@ -128,6 +130,49 @@ TEST_F(ScreenViewTest, FormulaShowsResult) {
 
 TEST_F(ScreenViewTest, LongNumberBecomesHashes) {
     fill("123456789012");
+    EXPECT_EQ(line_of(draw(), first_grid_line).substr(first_cell_x, 9), "#########");
+}
+
+TEST_F(ScreenViewTest, NumberFormatOfCellIsShown) {
+    fill("0.256");
+    press({"up", ":"});
+    for (const char c : std::string_view("format percent 1")) {
+        session.handle_key(std::string(1, c));
+    }
+    press({"enter"});
+    EXPECT_EQ(line_of(draw(), first_grid_line).substr(first_cell_x, 9), "    25.6%");
+    // в строке формулы по-прежнему то, что ввёл пользователь
+    EXPECT_EQ(line_of(draw(), 0).substr(0, 9), "A1: 0.256");
+
+    press({"ctrl+z"});
+    EXPECT_EQ(line_of(draw(), first_grid_line).substr(first_cell_x, 9), "    0.256");
+}
+
+TEST_F(ScreenViewTest, AlignOfCellIsShown) {
+    fill("12");
+    fill("abc");
+    press({"up", "up", ":"});
+    for (const char c : std::string_view("align center")) {
+        session.handle_key(std::string(1, c));
+    }
+    press({"enter", "down", ":"});
+    for (const char c : std::string_view("align right")) {
+        session.handle_key(std::string(1, c));
+    }
+    press({"enter"});
+    const Screen screen = draw();
+    EXPECT_EQ(line_of(screen, first_grid_line).substr(first_cell_x, 9), "   12    ");
+    EXPECT_EQ(line_of(screen, first_grid_line + 1).substr(first_cell_x, 9), "      abc");
+}
+
+// число, которое не влезло, даёт решётки при любом выравнивании
+TEST_F(ScreenViewTest, LongNumberBecomesHashesWhenAlignedLeft) {
+    fill("123456789012");
+    press({"up", ":"});
+    for (const char c : std::string_view("align left")) {
+        session.handle_key(std::string(1, c));
+    }
+    press({"enter"});
     EXPECT_EQ(line_of(draw(), first_grid_line).substr(first_cell_x, 9), "#########");
 }
 

@@ -24,6 +24,7 @@
 #include "core/io/format_registry.hpp"
 #include "core/io/register_formats.hpp"
 #include "core/number_format.hpp"
+#include "core/number_format_registry.hpp"
 #include "core/spreadsheet.hpp"
 #include "core/text.hpp"
 #include "core/value.hpp"
@@ -110,13 +111,13 @@ private:
     }
 };
 
-// 4. Фиксированное число знаков после точки, задел на второй этап
-class FixedFormat final : public ss::core::NumberFormat {
+// 4. Научная запись: 12345 при двух знаках это "1.23e+04"
+class ScientificFormat final : public ss::core::NumberFormat {
 public:
-    explicit FixedFormat(int digits) : digits_(digits) {}
+    explicit ScientificFormat(int digits) : digits_(digits) {}
 
     std::string format(double value) const override {
-        return std::format("{:.{}f}", value, digits_);
+        return std::format("{:.{}e}", value, digits_);
     }
 
 private:
@@ -132,6 +133,10 @@ protected:
 
         ss::core::register_formats(formats);
         formats.add_reader(std::make_shared<const TsvReader>());
+
+        ss::core::register_number_formats(number_formats);
+        number_formats.add(
+            "sci", [](int digits) { return std::make_shared<const ScientificFormat>(digits); });
     }
 
     std::string shown(std::string_view address) const {
@@ -140,6 +145,7 @@ protected:
 
     ss::core::FunctionRegistry functions;
     ss::core::FormatRegistry formats;
+    ss::core::NumberFormatRegistry number_formats;
     Spreadsheet sheet{functions};
 };
 
@@ -183,17 +189,18 @@ TEST_F(ExtensionsTest, TsvLoadsLiterals) {
     EXPECT_EQ(sheet.raw(at("A4")), "");
 }
 
-TEST_F(ExtensionsTest, FixedFormatShowsTwoDigits) {
-    const FixedFormat fixed(2);
-    sheet.set_input(at("A1"), "=1/3");
-    sheet.set_input(at("A2"), "2");
+TEST_F(ExtensionsTest, ScientificFormatIsCreatedBySpec) {
+    const auto scientific = number_formats.create(number_formats.make_spec("sci", 2));
+    sheet.set_input(at("A1"), "12345");
+    sheet.set_input(at("A2"), "=1/3");
     sheet.set_input(at("A3"), "text");
     sheet.set_input(at("A4"), "=1/0");
-    EXPECT_EQ(sheet.value(at("A1"))->display(fixed), "0.33");
-    EXPECT_EQ(sheet.value(at("A2"))->display(fixed), "2.00");
+    EXPECT_EQ(sheet.value(at("A1"))->display(*scientific), "1.23e+04");
+    EXPECT_EQ(sheet.value(at("A2"))->display(*scientific), "3.33e-01");
     // на строки и ошибки формат чисел не действует
-    EXPECT_EQ(sheet.value(at("A3"))->display(fixed), "text");
-    EXPECT_EQ(sheet.value(at("A4"))->display(fixed), "#DIV/0!");
-    // а обычный формат как был
-    EXPECT_EQ(sheet.value(at("A1"))->display(ss::core::GeneralFormat{}), "0.3333333333");
+    EXPECT_EQ(sheet.value(at("A3"))->display(*scientific), "text");
+    EXPECT_EQ(sheet.value(at("A4"))->display(*scientific), "#DIV/0!");
+    // старые форматы на месте
+    EXPECT_EQ(sheet.value(at("A2"))->display(*number_formats.create("fixed:2")), "0.33");
+    EXPECT_EQ(sheet.value(at("A2"))->display(*number_formats.create("")), "0.3333333333");
 }
