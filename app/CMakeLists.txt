@@ -13,6 +13,7 @@ add_library(ss_app STATIC
     src/modes/edit_mode.cpp
     src/modes/help_mode.cpp
     src/modes/normal_mode.cpp
+    src/planned_command.cpp
     src/register_actions.cpp
     src/session.cpp
     src/set_cell_command.cpp

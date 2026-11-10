@@ -9,6 +9,7 @@ add_library(ss_core STATIC
     src/builtins/sum_function.cpp
     src/cell_input.cpp
     src/dependency_graph.cpp
+    src/document_edit.cpp
     src/evaluator.cpp
     src/expr.cpp
     src/formula_printer.cpp
@@ -28,6 +29,7 @@ add_library(ss_core STATIC
     src/sheet.cpp
     src/sheet_eval_context.cpp
     src/spreadsheet.cpp
+    src/style_table.cpp
     src/text.cpp
     src/value.cpp
 )

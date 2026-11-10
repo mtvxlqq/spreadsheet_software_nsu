@@ -18,28 +18,93 @@ Spreadsheet::Spreadsheet(const FunctionProvider& functions) : input_parser_(func
 // Сначала всё, что может бросить, пока таблица не тронута: разбор ввода
 // и сбор ссылок. Потом граф и лист, и только потом пересчёт.
 void Spreadsheet::set_input(CellAddress address, std::string_view raw) {
-    address.check_valid();
-    std::optional<Cell> cell = input_parser_.parse(raw);
-    if (!cell) {
+    PreparedCell prepared = prepare(address, raw);
+    if (!prepared.cell) {
         clear(address);
         return;
     }
-    std::set<CellAddress> dependencies;
-    if (cell->formula) {
-        dependencies = RefCollector::collect(*cell->formula);
-    }
+    store(std::move(prepared));
+    recalculate({address});
+}
 
-    graph_.set_dependencies(address, std::move(dependencies));
+Spreadsheet::PreparedCell Spreadsheet::prepare(CellAddress address, std::string_view raw) const {
+    address.check_valid();
+    PreparedCell prepared{.address = address, .cell = input_parser_.parse(raw), .dependencies = {}};
+    if (prepared.cell && prepared.cell->formula) {
+        prepared.dependencies = RefCollector::collect(*prepared.cell->formula);
+    }
+    return prepared;
+}
+
+void Spreadsheet::store(PreparedCell prepared) {
+    if (!prepared.cell) {
+        graph_.remove_cell(prepared.address);
+        sheet_.remove(prepared.address);
+        return;
+    }
+    graph_.set_dependencies(prepared.address, std::move(prepared.dependencies));
     try {
-        sheet_.set(address, std::move(*cell));
+        sheet_.set(prepared.address, std::move(*prepared.cell));
     } catch (...) {
         // Бросить set может только при вставке новой ячейки (если она уже была,
         // это просто перемещение). А у ячейки, которой не было, не было и
         // зависимостей, так что откат это просто remove_cell, он не бросает.
-        graph_.remove_cell(address);
+        graph_.remove_cell(prepared.address);
         throw;
     }
-    recalculate({address});
+}
+
+const CellStyle& Spreadsheet::style(CellAddress address) const {
+    return styles_.get(address);
+}
+
+CellContent Spreadsheet::content(CellAddress address) const {
+    return {.raw = raw(address), .style = style(address)};
+}
+
+void Spreadsheet::apply(const DocumentEdit& edit) {
+    // всё, что может не понравиться пользователю, до первого изменения
+    std::vector<PreparedCell> prepared;
+    prepared.reserve(edit.cells.size());
+    for (const CellChange& change : edit.cells) {
+        prepared.push_back(prepare(change.address, change.after.raw));
+    }
+
+    std::vector<CellAddress> changed;
+    changed.reserve(edit.cells.size());
+    std::size_t done = 0;
+    try {
+        for (; done < prepared.size(); ++done) {
+            const CellChange& change = edit.cells[done];
+            styles_.set(change.address, change.after.style);
+            store(std::move(prepared[done]));
+            changed.push_back(change.address);
+        }
+        recalculate(changed);
+    } catch (...) {
+        // ячейку, на которой упали, тоже возвращаем: стиль у неё мог уже поменяться
+        roll_back(edit, std::min(done + 1, edit.cells.size()));
+        throw;
+    }
+}
+
+// Сюда попадаем, только если кончилась память. Каждая ячейка до этого
+// ставилась целиком, так что граф и лист согласованы, и остаётся вернуть
+// старое содержимое. Не вышло и это: таблица цела, но правка применена частично.
+void Spreadsheet::roll_back(const DocumentEdit& edit, std::size_t count) noexcept {
+    try {
+        std::vector<CellAddress> restored;
+        for (std::size_t i = count; i-- > 0;) {
+            const CellChange& change = edit.cells[i];
+            store(prepare(change.address, change.before.raw));
+            styles_.set(change.address, change.before.style);
+            restored.push_back(change.address);
+        }
+        SheetEvalContext context(sheet_);
+        Recalculator::run(graph_.plan(restored), sheet_, context);
+    } catch (...) {
+        // памяти нет даже на откат, сделать тут больше нечего
+    }
 }
 
 void Spreadsheet::clear(CellAddress address) {

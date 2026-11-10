@@ -3,6 +3,7 @@
 #include <string>
 
 #include "core/address.hpp"
+#include "core/cell_style.hpp"
 
 namespace ss::core {
 class NumberFormat;
@@ -11,7 +12,8 @@ class Spreadsheet;
 
 namespace ss::app {
 
-enum class Align { Left, Right };
+// выравнивание теперь часть стиля ячейки, а стиль живёт в документе
+using Align = ss::core::Align;
 
 // Как показать ячейку в таблице. Это решает app, чтобы в TUI осталось
 // только рисование.
