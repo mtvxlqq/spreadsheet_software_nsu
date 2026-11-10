@@ -12,6 +12,7 @@ add_library(ss_core STATIC
     src/evaluator.cpp
     src/expr.cpp
     src/formula_printer.cpp
+    src/formula_rewrite.cpp
     src/function_registry.cpp
     src/io/csv_reader.cpp
     src/io/format_registry.cpp
@@ -22,6 +23,8 @@ add_library(ss_core STATIC
     src/parser.cpp
     src/recalculator.cpp
     src/ref_collector.cpp
+    src/ref_mapping.cpp
+    src/ref_shifter.cpp
     src/sheet.cpp
     src/sheet_eval_context.cpp
     src/spreadsheet.cpp

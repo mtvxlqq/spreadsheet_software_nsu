@@ -27,6 +27,7 @@ add_executable(core_tests
     core/test_printer.cpp
     core/test_recalculator.cpp
     core/test_ref_collector.cpp
+    core/test_ref_shifter.cpp
     core/test_sheet.cpp
     core/test_spreadsheet.cpp
     core/test_value.cpp
