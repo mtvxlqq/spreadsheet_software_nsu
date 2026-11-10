@@ -17,6 +17,7 @@
 #include "core/function_registry.hpp"
 #include "core/spreadsheet.hpp"
 #include "core/value.hpp"
+#include "core/value_parser.hpp"
 #include "support/printers.hpp"
 
 using ss::core::CellAddress;
@@ -73,6 +74,7 @@ class SpreadsheetTest : public ::testing::Test {
 protected:
     SpreadsheetTest() {
         ss::core::register_builtins(functions);
+        ss::core::register_value_parsers(value_parsers);
         functions.add("COUNTCALLS",
                       [this] { return std::make_shared<CountCallsFunction>(count_calls); });
         sheet.subscribe(&observer);
@@ -99,7 +101,8 @@ protected:
 
     int count_calls = 0;
     ss::core::FunctionRegistry functions;
-    Spreadsheet sheet{functions};
+    ss::core::ValueParserRegistry value_parsers;
+    Spreadsheet sheet{functions, value_parsers};
     RecordingObserver observer;
 };
 

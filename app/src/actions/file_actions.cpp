@@ -21,15 +21,16 @@ void load_in_background(Session& session, const std::filesystem::path& path,
                         std::function<void(Session&, std::unique_ptr<ss::core::Spreadsheet>)> done) {
     const ss::core::FileReader& reader = session.formats().reader_for(path.string());
     const ss::core::FunctionProvider& functions = session.functions();
+    const ss::core::ValueParserRegistry& value_parsers = session.value_parsers();
     session.set_status("загрузка " + path.string() + "...");
-    // В фоне трогаем только reader и functions, их никто не меняет,
+    // В фоне трогаем только reader и реестры, их никто не меняет,
     // так что читать из двух потоков можно. Сеанс тут не используется.
-    session.run_in_background([path, &reader, &functions, done = std::move(done)](
+    session.run_in_background([path, &reader, &functions, &value_parsers, done = std::move(done)](
                                   std::stop_token) -> std::function<void(Session&)> {
         // std::function нужна копируемая лямбда, а unique_ptr не копируется,
         // поэтому таблицу кладём в shared_ptr и забираем из него в done
         auto document = std::make_shared<std::unique_ptr<ss::core::Spreadsheet>>(
-            load_document(path, reader, functions));
+            load_document(path, reader, functions, value_parsers));
         return [document, done](Session& target) { done(target, std::move(*document)); };
     });
 }

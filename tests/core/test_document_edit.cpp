@@ -19,6 +19,7 @@
 #include "core/function_registry.hpp"
 #include "core/spreadsheet.hpp"
 #include "core/value.hpp"
+#include "core/value_parser.hpp"
 
 using ss::core::Align;
 using ss::core::CellAddress;
@@ -73,6 +74,7 @@ class DocumentEditTest : public ::testing::Test {
 protected:
     DocumentEditTest() {
         ss::core::register_builtins(functions);
+        ss::core::register_value_parsers(value_parsers);
         functions.add("FAIL", [&flag = fail] { return std::make_shared<FailingFunction>(flag); });
     }
 
@@ -92,7 +94,8 @@ protected:
 
     bool fail = false;
     ss::core::FunctionRegistry functions;
-    ss::core::Spreadsheet document{functions};
+    ss::core::ValueParserRegistry value_parsers;
+    ss::core::Spreadsheet document{functions, value_parsers};
 };
 
 const CellStyle right_two_digits{.format = "fixed:2", .align = Align::Right};

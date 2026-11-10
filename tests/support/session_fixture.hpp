@@ -20,6 +20,7 @@
 #include "core/spreadsheet.hpp"
 #include "core/text.hpp"
 #include "core/value.hpp"
+#include "core/value_parser.hpp"
 #include "support/manual_dispatcher.hpp"
 
 namespace ss::test {
@@ -34,6 +35,7 @@ class SessionTest : public ::testing::Test {
 protected:
     SessionTest() {
         core::register_builtins(functions);
+        core::register_value_parsers(value_parsers);
         core::register_formats(formats);
         core::register_number_formats(number_formats);
         app::register_actions(actions);
@@ -95,11 +97,12 @@ protected:
     }
 
     core::FunctionRegistry functions;
+    core::ValueParserRegistry value_parsers;
     core::FormatRegistry formats;
     core::NumberFormatRegistry number_formats;
     app::ActionRegistry actions;
     ManualDispatcher dispatcher;
-    app::Session session{functions, formats, number_formats, actions,
+    app::Session session{functions, value_parsers, formats, number_formats, actions,
                          app::Keymap::defaults(), dispatcher};
 };
 

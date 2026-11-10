@@ -8,6 +8,7 @@
 namespace ss::core {
 
 class FunctionProvider;
+class ValueParserRegistry;
 
 // Превращает то, что пользователь ввёл в ячейку, в её содержимое.
 // Сам лист не трогает.
@@ -17,17 +18,20 @@ class FunctionProvider;
 //   ""      пусто, вернёт nullopt, и ячейку надо очистить
 //   "=1+A1" формула (если в ней ошибка, бросит ParseError)
 //   "'12"   текст "12": апостроф нужен, чтобы ввести число как текст
-//   "12"    число, если вся строка читается как число
-//   иначе   просто текст, например "12abc"
+//   иначе   спрашиваем разборщики значений: число, дата и т.д.
+//           Никто не узнал, значит это просто текст, например "12abc"
 class CellInputParser {
 public:
-    explicit CellInputParser(const FunctionProvider& functions) : functions_(functions) {}
+    // оба реестра должны жить дольше разборщика
+    CellInputParser(const FunctionProvider& functions, const ValueParserRegistry& value_parsers)
+        : functions_(functions), value_parsers_(value_parsers) {}
 
     // У формулы value пока пустое, посчитает его Recalculator.
     std::optional<Cell> parse(std::string_view input) const;
 
 private:
     const FunctionProvider& functions_;
+    const ValueParserRegistry& value_parsers_;
 };
 
 }  // namespace ss::core

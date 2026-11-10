@@ -22,6 +22,7 @@
 #include "core/number_format_registry.hpp"
 #include "core/spreadsheet.hpp"
 #include "core/value.hpp"
+#include "core/value_parser.hpp"
 #include "support/manual_dispatcher.hpp"
 
 using ss::app::Session;
@@ -40,6 +41,7 @@ class UndoStackTest : public ::testing::Test {
 protected:
     UndoStackTest() {
         ss::core::register_builtins(functions);
+        ss::core::register_value_parsers(value_parsers);
     }
 
     void set(UndoStack& stack, std::string_view address, std::string raw) {
@@ -49,13 +51,15 @@ protected:
     }
 
     ss::core::FunctionRegistry functions;
-    ss::core::Spreadsheet document{functions};
+    ss::core::ValueParserRegistry value_parsers;
+    ss::core::Spreadsheet document{functions, value_parsers};
 };
 
 class UndoSessionTest : public ::testing::Test {
 protected:
     UndoSessionTest() {
         ss::core::register_builtins(functions);
+        ss::core::register_value_parsers(value_parsers);
         ss::core::register_formats(formats);
         ss::core::register_number_formats(number_formats);
         ss::app::register_actions(actions);
@@ -73,11 +77,12 @@ protected:
     }
 
     ss::core::FunctionRegistry functions;
+    ss::core::ValueParserRegistry value_parsers;
     ss::core::FormatRegistry formats;
     ss::core::NumberFormatRegistry number_formats;
     ss::app::ActionRegistry actions;
     ss::test::ManualDispatcher dispatcher;
-    Session session{functions, formats, number_formats, actions,
+    Session session{functions, value_parsers, formats, number_formats, actions,
                     ss::app::Keymap::defaults(), dispatcher};
 };
 
@@ -207,7 +212,7 @@ TEST_F(UndoSessionTest, UndoAfterSaveMakesDocumentDirty) {
 
 TEST_F(UndoSessionTest, NewDocumentForgetsHistory) {
     press({"1", "enter"});
-    session.import_document(std::make_unique<ss::core::Spreadsheet>(functions));
+    session.import_document(std::make_unique<ss::core::Spreadsheet>(functions, value_parsers));
     press({"ctrl+z"});
     EXPECT_EQ(session.status().text, "нечего отменять");
 }

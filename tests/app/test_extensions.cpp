@@ -23,6 +23,7 @@
 #include "core/io/register_formats.hpp"
 #include "core/number_format_registry.hpp"
 #include "core/spreadsheet.hpp"
+#include "core/value_parser.hpp"
 #include "support/manual_dispatcher.hpp"
 #include "support/printers.hpp"
 
@@ -70,16 +71,18 @@ class GoEndTest : public ::testing::Test {
 protected:
     GoEndTest() {
         ss::core::register_builtins(functions);
+        ss::core::register_value_parsers(value_parsers);
         ss::core::register_formats(formats);
         ss::core::register_number_formats(number_formats);
         ss::app::register_actions(actions);
         // та самая одна строка регистрации
         actions.add("go-end", [] { return std::make_unique<GoEndAction>(); });
-        session = std::make_unique<Session>(functions, formats, number_formats, actions,
+        session = std::make_unique<Session>(functions, value_parsers, formats, number_formats, actions,
                                             keymap_with_go_end(actions), dispatcher);
     }
 
     ss::core::FunctionRegistry functions;
+    ss::core::ValueParserRegistry value_parsers;
     ss::core::FormatRegistry formats;
     ss::core::NumberFormatRegistry number_formats;
     ss::app::ActionRegistry actions;

@@ -13,7 +13,9 @@
 
 namespace ss::core {
 
-Spreadsheet::Spreadsheet(const FunctionProvider& functions) : input_parser_(functions) {}
+Spreadsheet::Spreadsheet(const FunctionProvider& functions,
+                         const ValueParserRegistry& value_parsers)
+    : input_parser_(functions, value_parsers) {}
 
 // Сначала всё, что может бросить, пока таблица не тронута: разбор ввода
 // и сбор ссылок. Потом граф и лист, и только потом пересчёт.

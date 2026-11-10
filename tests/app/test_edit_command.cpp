@@ -15,6 +15,7 @@
 #include "core/function_registry.hpp"
 #include "core/number_format_registry.hpp"
 #include "core/spreadsheet.hpp"
+#include "core/value_parser.hpp"
 
 using ss::app::Align;
 using ss::app::CellPresenter;
@@ -31,6 +32,7 @@ class DocumentTest : public ::testing::Test {
 protected:
     DocumentTest() {
         ss::core::register_builtins(functions);
+        ss::core::register_value_parsers(value_parsers);
         ss::core::register_number_formats(formats);
     }
 
@@ -39,8 +41,9 @@ protected:
     }
 
     ss::core::FunctionRegistry functions;
+    ss::core::ValueParserRegistry value_parsers;
     ss::core::NumberFormatRegistry formats;
-    ss::core::Spreadsheet document{functions};
+    ss::core::Spreadsheet document{functions, value_parsers};
 };
 
 // ничего не делает, нужно только для проверки реестра

@@ -54,7 +54,21 @@ bool holds(BinaryOp op, std::partial_ordering order) {
     }
 }
 
-// Логического типа на этом этапе нет, поэтому истина это 1, а ложь 0.
+// Сначала спрашиваем сами значения: у типа может быть своя арифметика,
+// например дата минус дата. nullptr значит, что считать надо как числа.
+// Сложение спрашиваем у обоих: 5 + дата то же самое, что дата + 5.
+ValuePtr own_arithmetic(BinaryOp op, const Value& left, const Value& right) {
+    if (op == BinaryOp::Add) {
+        ValuePtr result = left.plus(right);
+        return result ? result : right.plus(left);
+    }
+    if (op == BinaryOp::Sub) {
+        return left.minus(right);
+    }
+    return nullptr;
+}
+
+// Логического типа нет, поэтому истина это 1, а ложь 0.
 // Строки сравниваются без учёта регистра, число со строкой сравнить нельзя.
 ValuePtr comparison(BinaryOp op, const Value& left, const Value& right) {
     const std::optional<std::partial_ordering> order = left.compare(right);
@@ -161,6 +175,10 @@ void Evaluator::visit(const BinaryExpr& node) {
     }
     if (is_comparison(node.op())) {
         set_result(comparison(node.op(), *left, *right));
+        return;
+    }
+    if (ValuePtr result = own_arithmetic(node.op(), *left, *right)) {
+        set_result(std::move(result));
         return;
     }
     const std::optional<double> left_number = left->as_number();

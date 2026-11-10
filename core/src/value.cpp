@@ -43,6 +43,22 @@ std::optional<std::partial_ordering> Value::compare_with_empty() const {
     return std::nullopt;
 }
 
+std::optional<std::partial_ordering> Value::compare_with_date(Date /*lhs*/) const {
+    return std::nullopt;
+}
+
+std::optional<Date> Value::as_date() const {
+    return std::nullopt;
+}
+
+ValuePtr Value::plus(const Value& /*other*/) const {
+    return nullptr;
+}
+
+ValuePtr Value::minus(const Value& /*other*/) const {
+    return nullptr;
+}
+
 std::optional<double> EmptyValue::as_number() const {
     return 0.0;
 }
@@ -69,6 +85,11 @@ std::optional<std::partial_ordering> EmptyValue::compare_with_string(std::string
 
 std::optional<std::partial_ordering> EmptyValue::compare_with_empty() const {
     return std::partial_ordering::equivalent;
+}
+
+// слева дата, справа пусто: любая дата позже пустой ячейки
+std::optional<std::partial_ordering> EmptyValue::compare_with_date(Date /*lhs*/) const {
+    return std::partial_ordering::greater;
 }
 
 std::optional<double> NumberValue::as_number() const {
@@ -135,6 +156,63 @@ std::optional<std::partial_ordering> ErrorValue::compare(const Value& /*other*/)
     return std::nullopt;
 }
 
+std::optional<double> DateValue::as_number() const {
+    return static_cast<double>(date_.time_since_epoch().count());
+}
+
+std::optional<Date> DateValue::as_date() const {
+    return date_;
+}
+
+std::string DateValue::to_text() const {
+    return format_date(date_);
+}
+
+std::string DateValue::display(const NumberFormat& /*format*/) const {
+    return to_text();
+}
+
+std::optional<std::partial_ordering> DateValue::compare(const Value& other) const {
+    return other.compare_with_date(date_);
+}
+
+// слева пусто, справа дата
+std::optional<std::partial_ordering> DateValue::compare_with_empty() const {
+    return std::partial_ordering::less;
+}
+
+std::optional<std::partial_ordering> DateValue::compare_with_date(Date lhs) const {
+    return lhs <=> date_;
+}
+
+ValuePtr DateValue::plus(const Value& other) const {
+    if (other.as_date()) {
+        return make_error(ErrorCode::Value);
+    }
+    const std::optional<double> days = other.as_number();
+    // со строкой ничего особенного не делаем, Evaluator сам даст #VALUE!
+    return days ? shifted(*days) : nullptr;
+}
+
+ValuePtr DateValue::minus(const Value& other) const {
+    if (const std::optional<Date> date = other.as_date()) {
+        return make_number(static_cast<double>((date_ - *date).count()));
+    }
+    const std::optional<double> days = other.as_number();
+    return days ? shifted(-*days) : nullptr;
+}
+
+ValuePtr DateValue::shifted(double days) const {
+    // слишком большое число нельзя даже превратить в целое
+    constexpr double too_many = 1e9;
+    if (!std::isfinite(days) || std::abs(days) > too_many) {
+        return make_error(ErrorCode::Value);
+    }
+    // времени в датах нет, поэтому дробную часть отбрасываем
+    const std::optional<Date> moved = shift_date(date_, static_cast<long long>(std::trunc(days)));
+    return moved ? make_date(*moved) : make_error(ErrorCode::Value);
+}
+
 ValuePtr make_number(double value) {
     return std::make_shared<const NumberValue>(value);
 }
@@ -152,6 +230,10 @@ ValuePtr make_string(std::string text) {
 
 ValuePtr make_error(ErrorCode code) {
     return std::make_shared<const ErrorValue>(code);
+}
+
+ValuePtr make_date(Date date) {
+    return std::make_shared<const DateValue>(date);
 }
 
 ValuePtr empty_value() {

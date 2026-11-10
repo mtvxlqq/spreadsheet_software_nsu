@@ -138,7 +138,7 @@ TEST_F(WidthTest, CursorStaysVisibleWhenColumnGrows) {
 TEST_F(WidthTest, NewDocumentHasDefaultWidths) {
     go("A1");
     command("width 20");
-    session.replace_document(std::make_unique<ss::core::Spreadsheet>(functions), "other.sst");
+    session.replace_document(std::make_unique<ss::core::Spreadsheet>(functions, value_parsers), "other.sst");
     EXPECT_EQ(width(0), 10);
     EXPECT_FALSE(session.undo());
 }

@@ -26,6 +26,7 @@ namespace ss::core {
 class FormatRegistry;
 class FunctionProvider;
 class NumberFormatRegistry;
+class ValueParserRegistry;
 }  // namespace ss::core
 
 namespace ss::app {
@@ -45,7 +46,9 @@ public:
     using BackgroundWork = std::function<std::function<void(Session&)>(std::stop_token)>;
 
     // реестры и dispatcher должны жить дольше сеанса
-    Session(const ss::core::FunctionProvider& functions, const ss::core::FormatRegistry& formats,
+    Session(const ss::core::FunctionProvider& functions,
+            const ss::core::ValueParserRegistry& value_parsers,
+            const ss::core::FormatRegistry& formats,
             const ss::core::NumberFormatRegistry& number_formats, const ActionRegistry& actions,
             Keymap keymap, MainThreadDispatcher& dispatcher);
     ~Session() override;
@@ -112,6 +115,10 @@ public:
         return functions_;
     }
 
+    const ss::core::ValueParserRegistry& value_parsers() const {
+        return value_parsers_;
+    }
+
     const ss::core::FormatRegistry& formats() const {
         return formats_;
     }
@@ -154,6 +161,7 @@ private:
     void drop_unused_selection();
 
     const ss::core::FunctionProvider& functions_;
+    const ss::core::ValueParserRegistry& value_parsers_;
     const ss::core::FormatRegistry& formats_;
     const ss::core::NumberFormatRegistry& number_formats_;
     const ActionRegistry& actions_;

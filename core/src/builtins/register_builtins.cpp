@@ -3,6 +3,7 @@
 #include <memory>
 
 #include "builtins/average_function.hpp"
+#include "builtins/date_function.hpp"
 #include "builtins/if_function.hpp"
 #include "builtins/max_function.hpp"
 #include "builtins/min_function.hpp"
@@ -17,6 +18,7 @@ void register_builtins(FunctionRegistry& registry) {
     registry.add("MAX", [] { return std::make_shared<MaxFunction>(); });
     registry.add("AVERAGE", [] { return std::make_shared<AverageFunction>(); });
     registry.add("IF", [] { return std::make_shared<IfFunction>(); });
+    registry.add("DATE", [] { return std::make_shared<DateFunction>(); });
 }
 
 }  // namespace ss::core

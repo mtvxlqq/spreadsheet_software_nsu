@@ -10,6 +10,7 @@
 #include "core/errors.hpp"
 #include "core/formula_printer.hpp"
 #include "core/function_registry.hpp"
+#include "core/value_parser.hpp"
 
 using ss::core::Cell;
 using ss::core::CellInputParser;
@@ -20,6 +21,7 @@ class CellInput : public ::testing::Test {
 protected:
     CellInput() {
         ss::core::register_builtins(functions);
+        ss::core::register_value_parsers(value_parsers);
     }
 
     std::optional<Cell> parse(std::string_view input) const {
@@ -27,7 +29,8 @@ protected:
     }
 
     ss::core::FunctionRegistry functions;
-    CellInputParser parser{functions};
+    ss::core::ValueParserRegistry value_parsers;
+    CellInputParser parser{functions, value_parsers};
 };
 
 }  // namespace

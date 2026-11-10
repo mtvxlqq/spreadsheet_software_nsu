@@ -14,6 +14,7 @@
 #include "core/io/native_format.hpp"
 #include "core/spreadsheet.hpp"
 #include "core/value.hpp"
+#include "core/value_parser.hpp"
 
 using ss::core::Align;
 using ss::core::CellAddress;
@@ -32,6 +33,7 @@ class NativeFormatTest : public ::testing::Test {
 protected:
     NativeFormatTest() {
         ss::core::register_builtins(functions);
+        ss::core::register_value_parsers(value_parsers);
     }
 
     std::string save(const Spreadsheet& sheet) const {
@@ -53,7 +55,7 @@ protected:
 
     // номер строки из ошибки, или 0, если ошибки не было
     std::size_t error_line(std::string_view text) {
-        Spreadsheet sheet{functions};
+        Spreadsheet sheet{functions, value_parsers};
         try {
             load(text, sheet);
         } catch (const FileFormatError& error) {
@@ -67,13 +69,14 @@ protected:
     }
 
     ss::core::FunctionRegistry functions;
+    ss::core::ValueParserRegistry value_parsers;
     NativeFormat format;
 };
 
 }  // namespace
 
 TEST_F(NativeFormatTest, SavesInRowOrder) {
-    Spreadsheet sheet{functions};
+    Spreadsheet sheet{functions, value_parsers};
     sheet.set_input(at("B2"), "=A1*2");
     sheet.set_input(at("A1"), "42");
     sheet.set_input(at("C1"), "text");
@@ -81,18 +84,18 @@ TEST_F(NativeFormatTest, SavesInRowOrder) {
 }
 
 TEST_F(NativeFormatTest, EmptySheetIsJustSignature) {
-    const Spreadsheet sheet{functions};
+    const Spreadsheet sheet{functions, value_parsers};
     EXPECT_EQ(save(sheet), "SST 2\n");
 }
 
 TEST_F(NativeFormatTest, EscapesSpecialCharacters) {
-    Spreadsheet sheet{functions};
+    Spreadsheet sheet{functions, value_parsers};
     sheet.set_input(at("A1"), "a\tb\\c\nd");
     EXPECT_EQ(save(sheet), "SST 2\nA1\ta\\tb\\\\c\\nd\n");
 }
 
 TEST_F(NativeFormatTest, RoundTripKeepsRawAndValues) {
-    Spreadsheet original{functions};
+    Spreadsheet original{functions, value_parsers};
     original.set_input(at("A1"), "42");
     original.set_input(at("A2"), "=A1*2");
     original.set_input(at("B1"), "tab\there, slash \\ and\nnew line");
@@ -103,7 +106,7 @@ TEST_F(NativeFormatTest, RoundTripKeepsRawAndValues) {
     original.set_input(at("D2"), "=D1");
     original.set_input(at("ZZ65536"), "last");
 
-    Spreadsheet loaded{functions};
+    Spreadsheet loaded{functions, value_parsers};
     load(save(original), loaded);
 
     original.for_each_cell([&](CellAddress address) {
@@ -116,7 +119,7 @@ TEST_F(NativeFormatTest, RoundTripKeepsRawAndValues) {
 }
 
 TEST_F(NativeFormatTest, LoadsSimpleFile) {
-    Spreadsheet sheet{functions};
+    Spreadsheet sheet{functions, value_parsers};
     load_file("simple.sst", sheet);
     EXPECT_EQ(shown(sheet, "A1"), "42");
     EXPECT_EQ(shown(sheet, "B1"), "hello world");
@@ -126,13 +129,13 @@ TEST_F(NativeFormatTest, LoadsSimpleFile) {
 }
 
 TEST_F(NativeFormatTest, ChainWrittenBackwardsIsCalculated) {
-    Spreadsheet sheet{functions};
+    Spreadsheet sheet{functions, value_parsers};
     load_file("chain.sst", sheet);
     EXPECT_EQ(shown(sheet, "A3"), "3");
 }
 
 TEST_F(NativeFormatTest, CycleFromFileBecomesError) {
-    Spreadsheet sheet{functions};
+    Spreadsheet sheet{functions, value_parsers};
     load_file("cycle.sst", sheet);
     EXPECT_EQ(shown(sheet, "A1"), "#CYCLE!");
     EXPECT_EQ(shown(sheet, "B1"), "#CYCLE!");
@@ -141,7 +144,7 @@ TEST_F(NativeFormatTest, CycleFromFileBecomesError) {
 }
 
 TEST_F(NativeFormatTest, BrokenSignatureFile) {
-    Spreadsheet sheet{functions};
+    Spreadsheet sheet{functions, value_parsers};
     try {
         load_file("broken_signature.sst", sheet);
         FAIL() << "ждали FileFormatError";
@@ -152,7 +155,7 @@ TEST_F(NativeFormatTest, BrokenSignatureFile) {
 }
 
 TEST_F(NativeFormatTest, BrokenEscapeFile) {
-    Spreadsheet sheet{functions};
+    Spreadsheet sheet{functions, value_parsers};
     try {
         load_file("broken_escape.sst", sheet);
         FAIL() << "ждали FileFormatError";
@@ -175,7 +178,7 @@ TEST_F(NativeFormatTest, BrokenFilesReportTheirLine) {
 }
 
 TEST_F(NativeFormatTest, WindowsLineEndingsAndEmptyLinesAreFine) {
-    Spreadsheet sheet{functions};
+    Spreadsheet sheet{functions, value_parsers};
     load("SST 1\r\nA1\t1\r\n\r\nA2\t=A1+1\r\n", sheet);
     EXPECT_EQ(shown(sheet, "A2"), "2");
     EXPECT_EQ(sheet.raw(at("A1")), "1");
@@ -183,13 +186,13 @@ TEST_F(NativeFormatTest, WindowsLineEndingsAndEmptyLinesAreFine) {
 
 TEST_F(NativeFormatTest, FormulaOnUnknownFunctionLoads) {
     // неизвестная функция это не ошибка файла, а #NAME? в ячейке
-    Spreadsheet sheet{functions};
+    Spreadsheet sheet{functions, value_parsers};
     load("SST 1\nA1\t=NOPE(1)\n", sheet);
     EXPECT_EQ(shown(sheet, "A1"), "#NAME?");
 }
 
 TEST_F(NativeFormatTest, SavesStylesAndWidthsAfterCells) {
-    Spreadsheet sheet{functions};
+    Spreadsheet sheet{functions, value_parsers};
     sheet.set_input(at("A1"), "42");
     sheet.set_input(at("B2"), "text");
     sheet.set_style(at("A1"), {.format = "fixed:2", .align = Align::Right});
@@ -208,7 +211,7 @@ TEST_F(NativeFormatTest, SavesStylesAndWidthsAfterCells) {
 }
 
 TEST_F(NativeFormatTest, RoundTripKeepsStylesAndWidths) {
-    Spreadsheet original{functions};
+    Spreadsheet original{functions, value_parsers};
     original.set_input(at("A1"), "0.256");
     original.set_input(at("A2"), "=A1*2");
     original.set_style(at("A1"), {.format = "percent:1", .align = Align::Left});
@@ -218,7 +221,7 @@ TEST_F(NativeFormatTest, RoundTripKeepsStylesAndWidths) {
     original.set_column_width(0, 20);
     original.set_column_width(3, 3);
 
-    Spreadsheet loaded{functions};
+    Spreadsheet loaded{functions, value_parsers};
     load(save(original), loaded);
 
     EXPECT_EQ(loaded.style(at("A1")), original.style(at("A1")));
@@ -234,7 +237,7 @@ TEST_F(NativeFormatTest, RoundTripKeepsStylesAndWidths) {
 }
 
 TEST_F(NativeFormatTest, LoadsStyledFile) {
-    Spreadsheet sheet{functions};
+    Spreadsheet sheet{functions, value_parsers};
     load_file("styled.sst", sheet);
     EXPECT_EQ(shown(sheet, "B2"), "0.2");
     EXPECT_EQ(sheet.style(at("B2")), (CellStyle{.format = "percent:0", .align = std::nullopt}));
@@ -247,7 +250,7 @@ TEST_F(NativeFormatTest, LoadsStyledFile) {
 
 // файлы, сохранённые до появления оформления, открываются как раньше
 TEST_F(NativeFormatTest, OldVersionIsStillRead) {
-    Spreadsheet sheet{functions};
+    Spreadsheet sheet{functions, value_parsers};
     load("SST 1\nA1\t42\nA2\t=A1*2\n", sheet);
     EXPECT_EQ(shown(sheet, "A2"), "84");
     EXPECT_EQ(sheet.style(at("A1")), CellStyle{});
@@ -263,14 +266,14 @@ TEST_F(NativeFormatTest, OldVersionHasNoStyleLines) {
 
 // формат мог записать кто-то с другим набором форматов: не проверяем и не теряем
 TEST_F(NativeFormatTest, UnknownNumberFormatIsKept) {
-    Spreadsheet sheet{functions};
+    Spreadsheet sheet{functions, value_parsers};
     load("SST 2\nA1\t0.5\n!style\tA1\tmoney:2\tauto\n", sheet);
     EXPECT_EQ(sheet.style(at("A1")).format, "money:2");
     EXPECT_EQ(save(sheet), "SST 2\nA1\t0.5\n!style\tA1\tmoney:2\tauto\n");
 }
 
 TEST_F(NativeFormatTest, StyleLinesMayComeBeforeCells) {
-    Spreadsheet sheet{functions};
+    Spreadsheet sheet{functions, value_parsers};
     load("SST 2\n!width\tA\t20\n!style\tA1\tfixed:1\tleft\nA1\t2.5\n", sheet);
     EXPECT_EQ(sheet.style(at("A1")), (CellStyle{.format = "fixed:1", .align = Align::Left}));
     EXPECT_EQ(sheet.column_widths().get(0), 20);
@@ -302,7 +305,7 @@ TEST_F(NativeFormatTest, BrokenWidthLinesReportTheirLine) {
 }
 
 TEST_F(NativeFormatTest, BrokenStyleFile) {
-    Spreadsheet sheet{functions};
+    Spreadsheet sheet{functions, value_parsers};
     try {
         load_file("broken_style.sst", sheet);
         FAIL() << "ждали FileFormatError";

@@ -25,6 +25,7 @@
 #include "core/io/register_formats.hpp"
 #include "core/number_format_registry.hpp"
 #include "core/value.hpp"
+#include "core/value_parser.hpp"
 #include "support/manual_dispatcher.hpp"
 
 namespace fs = std::filesystem;
@@ -138,6 +139,7 @@ class BackgroundLoadTest : public ::testing::Test {
 protected:
     BackgroundLoadTest() {
         ss::core::register_builtins(functions);
+        ss::core::register_value_parsers(value_parsers);
         ss::core::register_formats(formats);
         ss::core::register_number_formats(number_formats);
         ss::app::register_actions(actions);
@@ -145,7 +147,7 @@ protected:
         dir = fs::temp_directory_path() / ("ss_background_" + test_name);
         fs::remove_all(dir);
         fs::create_directories(dir);
-        session = std::make_unique<Session>(functions, formats, number_formats, actions,
+        session = std::make_unique<Session>(functions, value_parsers, formats, number_formats, actions,
                                             ss::app::Keymap::defaults(), dispatcher);
     }
 
@@ -186,6 +188,7 @@ protected:
     }
 
     ss::core::FunctionRegistry functions;
+    ss::core::ValueParserRegistry value_parsers;
     ss::core::FormatRegistry formats;
     ss::core::NumberFormatRegistry number_formats;
     ss::app::ActionRegistry actions;

@@ -91,7 +91,13 @@ Element render_cell(const SessionView& view, CellAddress address, int width) {
         CellPresenter::present(view.document(), address, view.number_formats());
     const Overflow overflow = shown.is_number ? Overflow::Hashes : Overflow::Cut;
     // последняя позиция пустая, чтобы соседние столбцы не слипались
-    Element cell = ftxui::text(fit_cell(shown.text, width - 1, shown.align, overflow) + " ");
+    std::string body = fit_cell(shown.text, width - 1, shown.align, overflow) + " ";
+    // Числу не хватило ровно этой позиции: лучше занять её, чем показать
+    // решётки. Так дата 2024-03-15 помещается в обычный столбец.
+    if (shown.is_number && ftxui::string_width(shown.text) == width) {
+        body = shown.text;
+    }
+    Element cell = ftxui::text(std::move(body));
     const bool is_cursor = address == view.cursor();
     const std::optional<ss::core::Range> selection = view.selection();
     if (!selection) {

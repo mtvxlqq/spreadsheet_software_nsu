@@ -207,3 +207,23 @@ TEST_F(StyleTest, HugeRangeIsRejected) {
     EXPECT_EQ(style("A1"), CellStyle{});
     EXPECT_FALSE(session.undo());
 }
+
+// дата прижата вправо, как число, а формат чисел на неё не действует
+TEST_F(StyleTest, DateIsShownRightAlignedAndIgnoresNumberFormat) {
+    input("A1", "15.03.2024");
+    const ss::app::CellView view =
+        CellPresenter::present(session.document(), at("A1"), number_formats);
+    EXPECT_EQ(view.text, "2024-03-15");
+    EXPECT_EQ(view.align, Align::Right);
+    EXPECT_TRUE(view.is_number);
+
+    go("A1");
+    command("format fixed 2");
+    EXPECT_EQ(text("A1"), "2024-03-15");
+    // а разность дат это обычное число, и формат на него действует
+    input("A2", "01.03.2024");
+    input("A3", "=A1-A2");
+    go("A3");
+    command("format fixed 1");
+    EXPECT_EQ(text("A3"), "14.0");
+}

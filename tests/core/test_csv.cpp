@@ -12,6 +12,7 @@
 #include "core/io/csv_reader.hpp"
 #include "core/spreadsheet.hpp"
 #include "core/value.hpp"
+#include "core/value_parser.hpp"
 #include "support/printers.hpp"
 
 using ss::core::CellAddress;
@@ -30,6 +31,7 @@ class CsvTest : public ::testing::Test {
 protected:
     CsvTest() {
         ss::core::register_builtins(functions);
+        ss::core::register_value_parsers(value_parsers);
     }
 
     void load(std::string_view text) {
@@ -49,7 +51,8 @@ protected:
     }
 
     ss::core::FunctionRegistry functions;
-    Spreadsheet sheet{functions};
+    ss::core::ValueParserRegistry value_parsers;
+    Spreadsheet sheet{functions, value_parsers};
     CsvReader reader;
 };
 

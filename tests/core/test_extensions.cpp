@@ -28,6 +28,7 @@
 #include "core/spreadsheet.hpp"
 #include "core/text.hpp"
 #include "core/value.hpp"
+#include "core/value_parser.hpp"
 
 using ss::core::CellAddress;
 using ss::core::Spreadsheet;
@@ -128,6 +129,7 @@ class ExtensionsTest : public ::testing::Test {
 protected:
     ExtensionsTest() {
         ss::core::register_builtins(functions);
+        ss::core::register_value_parsers(value_parsers);
         // та самая одна строка регистрации
         functions.add("COUNT", [] { return std::make_shared<CountFunction>(); });
 
@@ -144,9 +146,10 @@ protected:
     }
 
     ss::core::FunctionRegistry functions;
+    ss::core::ValueParserRegistry value_parsers;
     ss::core::FormatRegistry formats;
     ss::core::NumberFormatRegistry number_formats;
-    Spreadsheet sheet{functions};
+    Spreadsheet sheet{functions, value_parsers};
 };
 
 }  // namespace

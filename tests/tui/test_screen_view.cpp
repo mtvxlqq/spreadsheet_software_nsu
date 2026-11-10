@@ -17,6 +17,7 @@
 #include "app/session.hpp"
 #include "core/builtins.hpp"
 #include "core/function_registry.hpp"
+#include "core/value_parser.hpp"
 #include "core/io/format_registry.hpp"
 #include "core/io/register_formats.hpp"
 #include "core/number_format_registry.hpp"
@@ -50,6 +51,7 @@ class ScreenViewTest : public ::testing::Test {
 protected:
     ScreenViewTest() {
         ss::core::register_builtins(functions);
+        ss::core::register_value_parsers(value_parsers);
         ss::core::register_formats(formats);
         ss::core::register_number_formats(number_formats);
         ss::app::register_actions(actions);
@@ -90,11 +92,12 @@ protected:
     }
 
     ss::core::FunctionRegistry functions;
+    ss::core::ValueParserRegistry value_parsers;
     ss::core::FormatRegistry formats;
     ss::core::NumberFormatRegistry number_formats;
     ss::app::ActionRegistry actions;
     ss::test::ManualDispatcher dispatcher;
-    Session session{functions, formats, number_formats, actions,
+    Session session{functions, value_parsers, formats, number_formats, actions,
                     ss::app::Keymap::defaults(), dispatcher};
 };
 
@@ -174,6 +177,27 @@ TEST_F(ScreenViewTest, LongNumberBecomesHashesWhenAlignedLeft) {
     }
     press({"enter"});
     EXPECT_EQ(line_of(draw(), first_grid_line).substr(first_cell_x, 9), "#########");
+}
+
+// дата на одну позицию шире места под текст и занимает пробел между столбцами
+TEST_F(ScreenViewTest, DateFitsDefaultColumn) {
+    fill("15.03.2024");
+    EXPECT_EQ(line_of(draw(), first_grid_line).substr(first_cell_x, 10), "2024-03-15");
+    press({"up", ">"});
+    EXPECT_EQ(line_of(draw(), first_grid_line).substr(first_cell_x, 11), "2024-03-15 ");
+    press({"<", "<"});
+    EXPECT_EQ(line_of(draw(), first_grid_line).substr(first_cell_x, 9), "######## ");
+}
+
+TEST_F(ScreenViewTest, NumberMayTakeSeparatorPositionButNotMore) {
+    fill("1234567890");
+    fill("12345678901");
+    fill("abcdefghij");
+    const Screen screen = draw();
+    EXPECT_EQ(line_of(screen, first_grid_line).substr(first_cell_x, 10), "1234567890");
+    EXPECT_EQ(line_of(screen, first_grid_line + 1).substr(first_cell_x, 10), "######### ");
+    // текст обрезается как раньше
+    EXPECT_EQ(line_of(screen, first_grid_line + 2).substr(first_cell_x, 10), "abcdefghi ");
 }
 
 TEST_F(ScreenViewTest, LongTextIsCutAtColumn) {

@@ -1,6 +1,7 @@
 add_library(ss_core STATIC
     src/address.cpp
     src/builtins/average_function.cpp
+    src/builtins/date_function.cpp
     src/builtins/if_function.cpp
     src/builtins/max_function.cpp
     src/builtins/min_function.cpp
@@ -9,6 +10,7 @@ add_library(ss_core STATIC
     src/builtins/sum_function.cpp
     src/cell_input.cpp
     src/column_widths.cpp
+    src/date.cpp
     src/dependency_graph.cpp
     src/document_edit.cpp
     src/evaluator.cpp
@@ -35,6 +37,7 @@ add_library(ss_core STATIC
     src/style_table.cpp
     src/text.cpp
     src/value.cpp
+    src/value_parsers.cpp
 )
 target_include_directories(ss_core PUBLIC include)
 # заголовки встроенных функций снаружи не нужны

@@ -21,6 +21,7 @@
 #include "core/io/format_registry.hpp"
 #include "core/io/register_formats.hpp"
 #include "core/number_format_registry.hpp"
+#include "core/value_parser.hpp"
 #include "tui/ftxui_dispatcher.hpp"
 #include "tui/tui_app.hpp"
 
@@ -71,6 +72,8 @@ int run_program(int argc, char** argv) {
 
     ss::core::FunctionRegistry functions;
     ss::core::register_builtins(functions);
+    ss::core::ValueParserRegistry value_parsers;
+    ss::core::register_value_parsers(value_parsers);
     ss::core::FormatRegistry formats;
     ss::core::register_formats(formats);
     ss::core::NumberFormatRegistry number_formats;
@@ -84,8 +87,8 @@ int run_program(int argc, char** argv) {
     // фоновых потоков, так что они не обратятся к уже удалённому App.
     ftxui::App app = ftxui::App::Fullscreen();
     ss::tui::FtxuiDispatcher dispatcher(app);
-    Session session(functions, formats, number_formats, actions, std::move(keymap.keymap),
-                    dispatcher);
+    Session session(functions, value_parsers, formats, number_formats, actions,
+                    std::move(keymap.keymap), dispatcher);
     ss::tui::TuiApp tui(app, session);
 
     if (!keymap.warnings.empty()) {

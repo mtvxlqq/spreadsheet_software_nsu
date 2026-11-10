@@ -16,6 +16,7 @@ add_executable(core_tests
     core/test_cell_input.cpp
     core/test_column_widths.cpp
     core/test_csv.cpp
+    core/test_date.cpp
     core/test_document_edit.cpp
     core/test_error_literal.cpp
     core/test_evaluator.cpp

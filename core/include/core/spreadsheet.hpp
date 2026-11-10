@@ -24,14 +24,15 @@ namespace ss::core {
 
 class CellObserver;
 class FunctionProvider;
+class ValueParserRegistry;
 
 // Главный класс ядра (паттерн Facade). Сам ничего не разбирает и не обходит
 // граф, только по очереди зовёт CellInputParser, RefCollector,
 // DependencyGraph и Recalculator, а потом сообщает наблюдателям.
 class Spreadsheet final : public CellSink, public CellSource {
 public:
-    // functions должен жить дольше таблицы
-    explicit Spreadsheet(const FunctionProvider& functions);
+    // оба реестра должны жить дольше таблицы
+    Spreadsheet(const FunctionProvider& functions, const ValueParserRegistry& value_parsers);
 
     // Если бросит (ParseError, LimitError), таблица останется как была,
     // и наблюдатели ничего не услышат.

@@ -19,6 +19,7 @@
 #include "core/io/register_formats.hpp"
 #include "core/number_format_registry.hpp"
 #include "core/value.hpp"
+#include "core/value_parser.hpp"
 #include "support/manual_dispatcher.hpp"
 #include "support/printers.hpp"
 
@@ -64,6 +65,7 @@ class ActionsTest : public ::testing::Test {
 protected:
     ActionsTest() {
         ss::core::register_builtins(functions);
+        ss::core::register_value_parsers(value_parsers);
         ss::core::register_formats(formats);
         ss::core::register_number_formats(number_formats);
         ss::app::register_actions(actions);
@@ -128,11 +130,12 @@ protected:
     }
 
     ss::core::FunctionRegistry functions;
+    ss::core::ValueParserRegistry value_parsers;
     ss::core::FormatRegistry formats;
     ss::core::NumberFormatRegistry number_formats;
     ss::app::ActionRegistry actions;
     ss::test::ManualDispatcher dispatcher;
-    Session session{functions, formats, number_formats, actions,
+    Session session{functions, value_parsers, formats, number_formats, actions,
                     ss::app::Keymap::defaults(), dispatcher};
     fs::path dir;
 };

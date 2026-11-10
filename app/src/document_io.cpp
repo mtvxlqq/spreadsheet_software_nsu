@@ -11,14 +11,15 @@
 
 namespace ss::app {
 
-std::unique_ptr<ss::core::Spreadsheet> load_document(const std::filesystem::path& path,
-                                                      const ss::core::FileReader& reader,
-                                                      const ss::core::FunctionProvider& functions) {
+std::unique_ptr<ss::core::Spreadsheet> load_document(
+    const std::filesystem::path& path, const ss::core::FileReader& reader,
+    const ss::core::FunctionProvider& functions,
+    const ss::core::ValueParserRegistry& value_parsers) {
     std::ifstream in(path, std::ios::binary);
     if (!in) {
         throw ss::core::Error("не удалось открыть " + path.string());
     }
-    auto document = std::make_unique<ss::core::Spreadsheet>(functions);
+    auto document = std::make_unique<ss::core::Spreadsheet>(functions, value_parsers);
     reader.load(in, *document);
     return document;
 }

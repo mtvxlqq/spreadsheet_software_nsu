@@ -12,15 +12,17 @@
 namespace ss::app {
 
 Session::Session(const ss::core::FunctionProvider& functions,
+                 const ss::core::ValueParserRegistry& value_parsers,
                  const ss::core::FormatRegistry& formats,
                  const ss::core::NumberFormatRegistry& number_formats,
                  const ActionRegistry& actions, Keymap keymap, MainThreadDispatcher& dispatcher)
     : functions_(functions),
+      value_parsers_(value_parsers),
       formats_(formats),
       number_formats_(number_formats),
       actions_(actions),
       keymap_(std::move(keymap)),
-      document_(std::make_unique<ss::core::Spreadsheet>(functions)),
+      document_(std::make_unique<ss::core::Spreadsheet>(functions, value_parsers)),
       mode_(std::make_unique<NormalMode>()),
       tasks_(dispatcher) {}
 

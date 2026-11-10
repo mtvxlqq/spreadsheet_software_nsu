@@ -17,6 +17,7 @@
 #include "core/spreadsheet.hpp"
 #include "core/structure_edit.hpp"
 #include "core/value.hpp"
+#include "core/value_parser.hpp"
 #include "support/printers.hpp"
 
 using ss::core::Align;
@@ -39,6 +40,7 @@ class StructureEditTest : public ::testing::Test {
 protected:
     StructureEditTest() {
         ss::core::register_builtins(functions);
+        ss::core::register_value_parsers(value_parsers);
     }
 
     void set(std::string_view address, std::string_view raw) {
@@ -78,7 +80,8 @@ protected:
     }
 
     ss::core::FunctionRegistry functions;
-    Spreadsheet sheet{functions};
+    ss::core::ValueParserRegistry value_parsers;
+    Spreadsheet sheet{functions, value_parsers};
 };
 
 }  // namespace
@@ -220,7 +223,7 @@ TEST_F(StructureEditTest, RefErrorIsSavedToFile) {
     format.save(out, sheet);
     EXPECT_EQ(out.str(), "SST 2\nA1\t=#REF!+1\n");
 
-    Spreadsheet loaded{functions};
+    Spreadsheet loaded{functions, value_parsers};
     std::istringstream in(out.str());
     format.load(in, loaded);
     EXPECT_EQ(loaded.raw(at("A1")), "=#REF!+1");

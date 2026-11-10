@@ -17,6 +17,7 @@
 #include "core/ref_collector.hpp"
 #include "core/sheet.hpp"
 #include "core/value.hpp"
+#include "core/value_parser.hpp"
 
 using ss::core::CellAddress;
 
@@ -28,6 +29,7 @@ class Recalc : public ::testing::Test, public ss::core::EvalContext {
 protected:
     Recalc() {
         ss::core::register_builtins(functions);
+        ss::core::register_value_parsers(value_parsers);
     }
 
     // возвращает адреса, которые пересчитались, в виде "A1 B1 C1"
@@ -71,7 +73,8 @@ protected:
     }
 
     ss::core::FunctionRegistry functions;
-    ss::core::CellInputParser parser{functions};
+    ss::core::ValueParserRegistry value_parsers;
+    ss::core::CellInputParser parser{functions, value_parsers};
     ss::core::Sheet sheet;
     ss::core::DependencyGraph graph;
 };
