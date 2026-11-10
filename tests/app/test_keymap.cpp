@@ -6,21 +6,22 @@
 
 #include <gtest/gtest.h>
 
+#include "app/action_registry.hpp"
 #include "app/errors.hpp"
 #include "app/keymap.hpp"
+#include "app/register_actions.hpp"
 
 using ss::app::Keymap;
 using ss::app::KeymapLoadResult;
 
 namespace {
 
-// В фазе 11 этот список будет давать ActionRegistry::names()
-const std::vector<std::string> known_actions = {
-    "move-up",   "move-down",  "move-left",  "move-right", "page-up",   "page-down",
-    "go-home",   "go-top",     "start-edit", "clear-cell", "command-mode", "show-help",
-    "save",      "open",       "import-csv", "quit",       "force-quit",   "undo",
-    "redo",
-};
+// имена настоящих действий, чтобы список не приходилось вести руками
+std::vector<std::string> known_actions() {
+    ss::app::ActionRegistry registry;
+    ss::app::register_actions(registry);
+    return registry.names();
+}
 
 std::string testdata(const std::string& name) {
     return std::string(SS_TESTDATA_DIR) + "/config/" + name;
@@ -28,7 +29,7 @@ std::string testdata(const std::string& name) {
 
 KeymapLoadResult load_text(const std::string& text) {
     std::istringstream in(text);
-    return Keymap::load(in, known_actions);
+    return Keymap::load(in, known_actions());
 }
 
 }  // namespace
@@ -46,12 +47,13 @@ TEST(KeymapTest, Defaults) {
 
 TEST(KeymapTest, DefaultsUseOnlyKnownActions) {
     const Keymap keymap = Keymap::defaults();
+    const std::vector<std::string> actions = known_actions();
     for (const char* key : {"up", "down", "left", "right", "h", "j", "k", "l", "pageup",
                             "pagedown", "home", "ctrl+home", "enter", "f2", "delete", ":", "?",
-                            "f1", "ctrl+s", "ctrl+q"}) {
+                            "f1", "ctrl+s", "ctrl+q", "ctrl+z", "ctrl+y", ">", "<"}) {
         const std::optional<std::string> action = keymap.action_for(key);
         ASSERT_TRUE(action.has_value()) << key;
-        EXPECT_NE(std::ranges::find(known_actions, *action), known_actions.end()) << key;
+        EXPECT_NE(std::ranges::find(actions, *action), actions.end()) << key;
     }
 }
 
@@ -92,7 +94,7 @@ TEST(KeymapTest, KeysForAction) {
 }
 
 TEST(KeymapTest, LoadsGoodFile) {
-    const KeymapLoadResult result = Keymap::load(testdata("keys_ok.conf"), known_actions);
+    const KeymapLoadResult result = Keymap::load(testdata("keys_ok.conf"), known_actions());
     EXPECT_TRUE(result.warnings.empty());
     EXPECT_EQ(result.keymap.action_for("ctrl+w"), "save");
     EXPECT_EQ(result.keymap.action_for("H"), "go-home");
@@ -104,7 +106,7 @@ TEST(KeymapTest, LoadsGoodFile) {
 }
 
 TEST(KeymapTest, BrokenFileGivesWarningsAndKeepsDefaults) {
-    const KeymapLoadResult result = Keymap::load(testdata("keys_broken.conf"), known_actions);
+    const KeymapLoadResult result = Keymap::load(testdata("keys_broken.conf"), known_actions());
     ASSERT_EQ(result.warnings.size(), 5U);
     EXPECT_TRUE(result.warnings[0].starts_with("строка 2: ")) << result.warnings[0];
     EXPECT_TRUE(result.warnings[1].starts_with("строка 3: ")) << result.warnings[1];
@@ -120,13 +122,13 @@ TEST(KeymapTest, BrokenFileGivesWarningsAndKeepsDefaults) {
 }
 
 TEST(KeymapTest, MissingFileGivesDefaultsSilently) {
-    const KeymapLoadResult result = Keymap::load(testdata("no_such_file.conf"), known_actions);
+    const KeymapLoadResult result = Keymap::load(testdata("no_such_file.conf"), known_actions());
     EXPECT_TRUE(result.warnings.empty());
     EXPECT_EQ(result.keymap.action_for("up"), "move-up");
 }
 
 TEST(KeymapTest, DirectoryInsteadOfFileIsWarned) {
-    const KeymapLoadResult result = Keymap::load(SS_TESTDATA_DIR, known_actions);
+    const KeymapLoadResult result = Keymap::load(SS_TESTDATA_DIR, known_actions());
     EXPECT_EQ(result.warnings.size(), 1U);
     EXPECT_EQ(result.keymap.action_for("up"), "move-up");
 }
@@ -144,10 +146,10 @@ TEST(KeymapTest, LaterLineWins) {
 
 TEST(KeymapTest, ShippedConfigMatchesDefaults) {
     const KeymapLoadResult result =
-        Keymap::load(std::string(SS_TESTDATA_DIR) + "/../config/keys.conf", known_actions);
+        Keymap::load(std::string(SS_TESTDATA_DIR) + "/../config/keys.conf", known_actions());
     EXPECT_TRUE(result.warnings.empty());
     const Keymap defaults = Keymap::defaults();
-    for (const std::string& action : known_actions) {
+    for (const std::string& action : known_actions()) {
         EXPECT_EQ(result.keymap.keys_for(action), defaults.keys_for(action)) << action;
     }
 }

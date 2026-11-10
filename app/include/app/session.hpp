@@ -53,7 +53,8 @@ public:
     // а показываются в статусе. После каждого вызова наблюдатели
     // получают on_session_changed.
     void handle_key(std::string_view key);
-    void resize(int visible_rows, int visible_cols);
+    // grid_width это ширина сетки в позициях экрана, без номеров строк
+    void resize(int visible_rows, int grid_width);
 
     // курсор не уходит за края листа, экран прокручивается за ним
     void move_cursor(int d_row, int d_col);
@@ -70,6 +71,8 @@ public:
     bool undo();
     bool redo();
     void set_status(std::string text, Status::Kind kind = Status::Kind::Info);
+    // с какой строки показывать справку; лишнее обрезается до последней страницы
+    void set_help_scroll(int line);
 
     // открыли файл: он становится текущим, несохранённых изменений нет
     void replace_document(std::unique_ptr<ss::core::Spreadsheet> document,
@@ -125,6 +128,7 @@ public:
     std::size_t edit_caret() const override;
     std::string formula_bar_text() const override;
     std::vector<std::string> help_lines() const override;
+    int help_scroll() const override;
     bool dirty() const override;
     const std::optional<std::filesystem::path>& current_path() const override;
     bool quit_requested() const override;
@@ -135,6 +139,8 @@ private:
     void finish_background(const std::function<void(Session&)>& next,
                            const std::exception_ptr& error);
     void set_document(std::unique_ptr<ss::core::Spreadsheet> document);
+    // после правки ширина столбцов могла измениться
+    void keep_cursor_visible();
 
     const ss::core::FunctionProvider& functions_;
     const ss::core::FormatRegistry& formats_;
@@ -146,6 +152,7 @@ private:
     Viewport viewport_;
     LineEditor edit_line_;
     Status status_;
+    int help_scroll_ = 0;
     UndoStack history_;
     std::unique_ptr<Mode> mode_;
     // режим, на который переключимся после текущей клавиши

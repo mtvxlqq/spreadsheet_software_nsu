@@ -8,6 +8,7 @@ add_library(ss_core STATIC
     src/builtins/register_builtins.cpp
     src/builtins/sum_function.cpp
     src/cell_input.cpp
+    src/column_widths.cpp
     src/dependency_graph.cpp
     src/document_edit.cpp
     src/evaluator.cpp

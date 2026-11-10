@@ -13,8 +13,19 @@ std::string_view HelpMode::name() const {
     return "help";
 }
 
-void HelpMode::handle_key(Session& session, std::string_view /*key*/) const {
-    session.set_mode(std::make_unique<NormalMode>());
+void HelpMode::handle_key(Session& session, std::string_view key) const {
+    const int page = session.viewport().visible_rows();
+    if (key == "down") {
+        session.set_help_scroll(session.help_scroll() + 1);
+    } else if (key == "up") {
+        session.set_help_scroll(session.help_scroll() - 1);
+    } else if (key == "pagedown") {
+        session.set_help_scroll(session.help_scroll() + page);
+    } else if (key == "pageup") {
+        session.set_help_scroll(session.help_scroll() - page);
+    } else {
+        session.set_mode(std::make_unique<NormalMode>());
+    }
 }
 
 // строка вида "move-up [k, up]: курсор вверх"

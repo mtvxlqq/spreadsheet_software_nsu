@@ -59,7 +59,7 @@ protected:
         ss::core::register_formats(formats);
         ss::core::register_number_formats(number_formats);
         ss::app::register_actions(actions);
-        session.resize(20, 8);
+        session.resize(20, 80);
     }
 
     void press(std::initializer_list<std::string_view> keys) {
@@ -151,7 +151,9 @@ TEST_F(UndoStackTest, UndoRecalculatesDependents) {
 
 TEST_F(UndoStackTest, UndoKeepsStyleOfCell) {
     const ss::core::CellStyle style{.format = "fixed:2", .align = ss::core::Align::Right};
-    document.apply({.cells = {{.address = at("A1"), .before = {}, .after = {.raw = "", .style = style}}}});
+    ss::core::DocumentEdit styled;
+    styled.cells.push_back({.address = at("A1"), .before = {}, .after = {.raw = "", .style = style}});
+    document.apply(styled);
     UndoStack stack;
     set(stack, "A1", "7");
     EXPECT_EQ(document.style(at("A1")), style);

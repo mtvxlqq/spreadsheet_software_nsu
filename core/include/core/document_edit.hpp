@@ -1,10 +1,12 @@
 #pragma once
 
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "core/address.hpp"
 #include "core/cell_style.hpp"
+#include "core/column_widths.hpp"
 
 namespace ss::core {
 
@@ -28,6 +30,9 @@ struct CellChange {
 // Так отменяется даже удаление строки, которое обратной операцией не вернёшь.
 struct DocumentEdit {
     std::vector<CellChange> cells;
+    // заполнены, только если правка меняет ширины столбцов
+    std::optional<ColumnWidths> widths_before;
+    std::optional<ColumnWidths> widths_after;
 
     DocumentEdit inverse() const;
 };

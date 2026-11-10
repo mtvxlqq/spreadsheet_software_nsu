@@ -10,7 +10,8 @@ namespace ss::app {
 class ActionRegistry;
 class Keymap;
 
-// Показывается справка, любая клавиша возвращает в NormalMode.
+// Показывается справка. Стрелки и pageup/pagedown её листают, любая
+// другая клавиша возвращает в NormalMode.
 class HelpMode final : public Mode {
 public:
     HelpMode() = default;

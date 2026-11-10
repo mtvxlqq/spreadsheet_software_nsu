@@ -33,6 +33,7 @@ std::string_view ShowHelpAction::description() const {
 
 void ShowHelpAction::execute(Session& session, std::span<const std::string> args) const {
     expect_no_args(name(), args);
+    session.set_help_scroll(0);
     session.set_mode(std::make_unique<HelpMode>());
 }
 

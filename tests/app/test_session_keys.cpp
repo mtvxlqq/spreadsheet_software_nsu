@@ -87,7 +87,7 @@ protected:
         ss::core::register_formats(formats);
         ss::core::register_number_formats(number_formats);
         ss::app::register_actions(actions);
-        session.resize(20, 8);
+        session.resize(20, 80);
     }
 
     void press(std::initializer_list<std::string_view> keys) {
@@ -214,7 +214,7 @@ TEST_F(SessionKeysTest, MovementKeys) {
 }
 
 TEST_F(SessionKeysTest, ViewportFollowsCursor) {
-    session.resize(5, 3);
+    session.resize(5, 30);
     press({"down", "down", "down", "down", "down"});
     EXPECT_EQ(session.cursor(), at("A6"));
     EXPECT_EQ(session.viewport().first_row(), 1);
@@ -227,10 +227,11 @@ TEST_F(SessionKeysTest, ViewportFollowsCursor) {
 
 TEST_F(SessionKeysTest, ResizeKeepsCursorVisible) {
     session.set_cursor(at("A15"));
-    session.resize(5, 3);
-    EXPECT_TRUE(session.viewport().contains(at("A15")));
-    session.resize(40, 3);
-    EXPECT_TRUE(session.viewport().contains(at("A15")));
+    session.resize(5, 30);
+    const ss::core::ColumnWidths& widths = session.document().column_widths();
+    EXPECT_TRUE(session.viewport().contains(at("A15"), widths));
+    session.resize(40, 30);
+    EXPECT_TRUE(session.viewport().contains(at("A15"), widths));
 }
 
 TEST_F(SessionKeysTest, DeleteClearsCell) {
@@ -345,7 +346,7 @@ TEST_F(SessionKeysTest, ObserversAreNotifiedAfterEachKey) {
     session.subscribe(&observer);
     session.subscribe(&observer);
     press({"1", "2", "enter"});
-    session.resize(10, 10);
+    session.resize(10, 100);
     EXPECT_EQ(observer.calls, 4);
     session.unsubscribe(&observer);
     press({"down"});

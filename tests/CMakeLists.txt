@@ -14,6 +14,7 @@ FetchContent_MakeAvailable(googletest)
 add_executable(core_tests
     core/test_address.cpp
     core/test_cell_input.cpp
+    core/test_column_widths.cpp
     core/test_csv.cpp
     core/test_document_edit.cpp
     core/test_error_literal.cpp
@@ -52,6 +53,7 @@ add_executable(app_tests
     app/test_task_runner.cpp
     app/test_undo.cpp
     app/test_viewport.cpp
+    app/test_width.cpp
 )
 target_include_directories(app_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_definitions(app_tests PRIVATE SS_TESTDATA_DIR="${PROJECT_SOURCE_DIR}/testdata")

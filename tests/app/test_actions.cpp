@@ -67,7 +67,7 @@ protected:
         ss::core::register_formats(formats);
         ss::core::register_number_formats(number_formats);
         ss::app::register_actions(actions);
-        session.resize(20, 8);
+        session.resize(20, 80);
         // у каждого теста своя папка, тесты могут идти параллельно
         const std::string test_name = ::testing::UnitTest::GetInstance()->current_test_info()->name();
         dir = fs::temp_directory_path() / ("ss_actions_" + test_name);

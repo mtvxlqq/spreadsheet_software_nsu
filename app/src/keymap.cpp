@@ -91,6 +91,8 @@ Keymap Keymap::defaults() {
     keymap.bind("delete", "clear-cell");
     keymap.bind("ctrl+z", "undo");
     keymap.bind("ctrl+y", "redo");
+    keymap.bind(">", "column-wider");
+    keymap.bind("<", "column-narrower");
     keymap.bind(":", "command-mode");
     keymap.bind("?", "show-help");
     keymap.bind("f1", "show-help");

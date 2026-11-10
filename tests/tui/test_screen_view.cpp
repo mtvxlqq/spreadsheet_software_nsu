@@ -58,7 +58,7 @@ protected:
 
     void use_window(int width, int height) {
         const ss::tui::ScreenLayout layout = compute_layout(width, height);
-        session.resize(layout.visible_rows, layout.visible_cols);
+        session.resize(layout.visible_rows, layout.grid_width);
     }
 
     Screen draw(int width = 80, int height = 24) const {
@@ -299,17 +299,102 @@ TEST_F(ScreenViewTest, BusyIsShownWhenStatusIsEmpty) {
     EXPECT_TRUE(contains(line_of(draw(), 23), "загрузка"));
 }
 
-TEST_F(ScreenViewTest, HelpReplacesTableAndFitsStandardWindow) {
+// первое слово строки справки, то есть имя действия
+std::string action_name(const std::string& help_line) {
+    return help_line.substr(0, help_line.find_first_of(" :"));
+}
+
+TEST_F(ScreenViewTest, HelpReplacesTable) {
     press({"?"});
     const Screen screen = draw();
     const std::vector<std::string> help = session.help_lines();
-    ASSERT_LE(help.size() + 2, 24U);
-    for (std::size_t i = 0; i < help.size(); ++i) {
-        const std::string name = help[i].substr(0, help[i].find_first_of(" :"));
-        EXPECT_TRUE(contains(line_of(screen, static_cast<int>(i) + 1), name)) << name;
+    // между заголовком и строкой состояния 22 строки
+    for (std::size_t i = 0; i < 22 && i < help.size(); ++i) {
+        EXPECT_TRUE(contains(line_of(screen, static_cast<int>(i) + 1), action_name(help[i])))
+            << help[i];
     }
     EXPECT_FALSE(contains(line_of(screen, 1), "A         B"));
     EXPECT_TRUE(contains(line_of(screen, 23), "help"));
+}
+
+// справка длиннее окна 80x24, до конца её можно долистать
+TEST_F(ScreenViewTest, HelpScrollsToTheLastLine) {
+    press({"?"});
+    const std::vector<std::string> help = session.help_lines();
+    ASSERT_GT(help.size(), 22U);
+    press({"down"});
+    EXPECT_TRUE(contains(line_of(draw(), 1), action_name(help[1])));
+    EXPECT_EQ(session.mode_name(), "help");
+
+    press({"pagedown", "pagedown", "pagedown"});
+    const Screen screen = draw();
+    bool last_is_shown = false;
+    for (int y = 1; y < 23; ++y) {
+        last_is_shown = last_is_shown || contains(line_of(screen, y), action_name(help.back()));
+    }
+    EXPECT_TRUE(last_is_shown);
+    // строка состояния на месте, справка её не вытеснила
+    EXPECT_TRUE(contains(line_of(screen, 23), "help"));
+
+    press({"pageup", "pageup", "pageup", "up"});
+    EXPECT_TRUE(contains(line_of(draw(), 1), action_name(help.front())));
+    // любая другая клавиша закрывает справку
+    press({"q"});
+    EXPECT_EQ(session.mode_name(), "normal");
+}
+
+TEST_F(ScreenViewTest, HelpStartsFromTheTopEachTime) {
+    press({"?", "pagedown", "esc", "?"});
+    EXPECT_EQ(session.help_scroll(), 0);
+}
+
+TEST_F(ScreenViewTest, WiderColumnMovesNeighbours) {
+    fill("abcdefghijklmnop");
+    press({"up", ":"});
+    for (const char c : std::string_view("width 20")) {
+        session.handle_key(std::string(1, c));
+    }
+    press({"enter"});
+    const Screen screen = draw();
+    const std::string header = line_of(screen, 1);
+    EXPECT_EQ(header.substr(first_cell_x, 1), "A");
+    EXPECT_EQ(header.substr(first_cell_x + 20, 1), "B");
+    EXPECT_EQ(header.substr(first_cell_x + 30, 1), "C");
+    // текст теперь влезает целиком
+    EXPECT_EQ(line_of(screen, first_grid_line).substr(first_cell_x, 20), "abcdefghijklmnop    ");
+    // курсор на всю ширину столбца
+    EXPECT_TRUE(screen.PixelAt(first_cell_x + 19, first_grid_line).inverted);
+    EXPECT_FALSE(screen.PixelAt(first_cell_x + 20, first_grid_line).inverted);
+    // в 74 позиции влезают A (20) и ещё пять столбцов
+    EXPECT_EQ(header.substr(first_cell_x + 60, 1), "F");
+    EXPECT_FALSE(contains(header, "G"));
+}
+
+TEST_F(ScreenViewTest, NarrowColumnShowsHashesForNumber) {
+    fill("123456");
+    press({"up", ":"});
+    for (const char c : std::string_view("width 5")) {
+        session.handle_key(std::string(1, c));
+    }
+    press({"enter"});
+    const Screen screen = draw();
+    EXPECT_EQ(line_of(screen, first_grid_line).substr(first_cell_x, 5), "#### ");
+    EXPECT_EQ(line_of(screen, 1).substr(first_cell_x + 5, 1), "B");
+}
+
+TEST_F(ScreenViewTest, ColumnWiderThanWindowIsCut) {
+    use_window(40, 10);
+    fill("abc");
+    press({"up", ":"});
+    for (const char c : std::string_view("width 60")) {
+        session.handle_key(std::string(1, c));
+    }
+    press({"enter"});
+    const Screen screen = draw(40, 10);
+    EXPECT_EQ(line_of(screen, 1).substr(first_cell_x, 1), "A");
+    EXPECT_FALSE(contains(line_of(screen, 1), "B"));
+    EXPECT_TRUE(contains(line_of(screen, first_grid_line), "abc"));
+    EXPECT_TRUE(screen.PixelAt(39, first_grid_line).inverted);
 }
 
 TEST_F(ScreenViewTest, TinyWindowDoesNotCrash) {
@@ -324,6 +409,6 @@ TEST_F(ScreenViewTest, NarrowEditDoesNotCrash) {
 }
 
 TEST_F(ScreenViewTest, WindowWiderThanSheetDoesNotCrash) {
-    session.resize(5, ss::core::max_cols + 100);
+    session.resize(5, ss::core::max_cols * 10 + 1000);
     EXPECT_NO_THROW(draw(8000, 8));
 }

@@ -48,6 +48,8 @@ public:
     // в правке это буфер, иначе raw ячейки под курсором
     virtual std::string formula_bar_text() const = 0;
     virtual std::vector<std::string> help_lines() const = 0;
+    // сколько первых строк справки пропустить: она длиннее экрана
+    virtual int help_scroll() const = 0;
     // есть несохранённые изменения
     virtual bool dirty() const = 0;
     // откуда открыт или куда последний раз сохранён документ

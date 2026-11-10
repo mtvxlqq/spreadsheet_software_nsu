@@ -85,7 +85,7 @@ void TuiApp::sync_size(const ftxui::Dimensions& size) {
     const ScreenLayout layout = compute_layout(size.dimx, size.dimy);
     if (last_layout_ != layout) {
         last_layout_ = layout;
-        session_.resize(layout.visible_rows, layout.visible_cols);
+        session_.resize(layout.visible_rows, layout.grid_width);
     }
 }
 

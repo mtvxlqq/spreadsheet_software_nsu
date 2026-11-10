@@ -90,7 +90,7 @@ protected:
 }  // namespace
 
 TEST_F(GoEndTest, KeyGoesToLastFilledRow) {
-    session->resize(10, 5);
+    session->resize(10, 50);
     session->set_cursor(at("C3"));
     session->handle_key("1");
     session->handle_key("enter");
@@ -102,7 +102,7 @@ TEST_F(GoEndTest, KeyGoesToLastFilledRow) {
     session->handle_key("ctrl+end");
     EXPECT_EQ(session->cursor(), at("B40"));
     // экран прокрутился за курсором
-    EXPECT_TRUE(session->viewport().contains(at("B40")));
+    EXPECT_TRUE(session->viewport().contains(at("B40"), session->document().column_widths()));
 }
 
 TEST_F(GoEndTest, EmptySheetStaysInPlace) {

@@ -13,6 +13,7 @@
 #include "core/cell_input.hpp"
 #include "core/cell_io.hpp"
 #include "core/cell_style.hpp"
+#include "core/column_widths.hpp"
 #include "core/dependency_graph.hpp"
 #include "core/document_edit.hpp"
 #include "core/sheet.hpp"
@@ -45,6 +46,7 @@ public:
     void for_each_cell(const std::function<void(CellAddress)>& fn) const override;
 
     const CellStyle& style(CellAddress address) const;
+    const ColumnWidths& column_widths() const;
     // то, что надо запомнить, чтобы потом вернуть ячейку как была
     CellContent content(CellAddress address) const;
 
@@ -79,6 +81,7 @@ private:
     Sheet sheet_;
     DependencyGraph graph_;
     StyleTable styles_;
+    ColumnWidths widths_;
     std::vector<CellObserver*> observers_;
 };
 

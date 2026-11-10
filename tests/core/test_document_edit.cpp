@@ -12,6 +12,7 @@
 #include "core/builtins.hpp"
 #include "core/cell_observer.hpp"
 #include "core/cell_style.hpp"
+#include "core/column_widths.hpp"
 #include "core/document_edit.hpp"
 #include "core/errors.hpp"
 #include "core/function.hpp"
@@ -24,6 +25,7 @@ using ss::core::CellAddress;
 using ss::core::CellChange;
 using ss::core::CellContent;
 using ss::core::CellStyle;
+using ss::core::ColumnWidths;
 using ss::core::DocumentEdit;
 
 namespace {
@@ -213,6 +215,58 @@ TEST_F(DocumentEditTest, FailureInTheMiddleIsRolledBack) {
     EXPECT_EQ(document.style(at("A1")), CellStyle{});
     EXPECT_EQ(document.raw(at("A2")), "");
     EXPECT_EQ(shown("B1"), "2");
+}
+
+TEST_F(DocumentEditTest, WidthsAreAppliedAndInverted) {
+    ColumnWidths wide;
+    wide.set(1, 25);
+    DocumentEdit edit = edit_to({{"A1", input("1")}});
+    edit.widths_before = document.column_widths();
+    edit.widths_after = wide;
+
+    document.apply(edit);
+    EXPECT_EQ(document.column_widths().get(1), 25);
+    EXPECT_EQ(document.raw(at("A1")), "1");
+
+    document.apply(edit.inverse());
+    EXPECT_EQ(document.column_widths(), ColumnWidths{});
+    EXPECT_EQ(document.raw(at("A1")), "");
+}
+
+// правка без ширин их не сбрасывает
+TEST_F(DocumentEditTest, EditWithoutWidthsKeepsThem) {
+    ColumnWidths wide;
+    wide.set(0, 30);
+    DocumentEdit widen;
+    widen.widths_before = document.column_widths();
+    widen.widths_after = wide;
+    document.apply(widen);
+
+    document.apply(edit_to({{"A1", input("1")}}));
+    EXPECT_EQ(document.column_widths().get(0), 30);
+}
+
+TEST_F(DocumentEditTest, WidthsAreRolledBackOnFailure) {
+    ColumnWidths wide;
+    wide.set(0, 30);
+    DocumentEdit edit = edit_to({{"A1", input("=FAIL()")}});
+    edit.widths_before = document.column_widths();
+    edit.widths_after = wide;
+    fail = true;
+    EXPECT_THROW(document.apply(edit), std::runtime_error);
+    fail = false;
+    EXPECT_EQ(document.column_widths(), ColumnWidths{});
+    EXPECT_EQ(document.raw(at("A1")), "");
+}
+
+TEST_F(DocumentEditTest, WidthsAreUntouchedOnParseError) {
+    ColumnWidths wide;
+    wide.set(0, 30);
+    DocumentEdit edit = edit_to({{"A1", input("=1+")}});
+    edit.widths_before = document.column_widths();
+    edit.widths_after = wide;
+    EXPECT_THROW(document.apply(edit), ss::core::ParseError);
+    EXPECT_EQ(document.column_widths(), ColumnWidths{});
 }
 
 TEST_F(DocumentEditTest, CycleInsideOneEdit) {

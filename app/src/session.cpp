@@ -48,10 +48,14 @@ void Session::handle_key(std::string_view key) {
     notify();
 }
 
-void Session::resize(int visible_rows, int visible_cols) {
-    viewport_.resize(visible_rows, visible_cols);
-    viewport_.ensure_visible(cursor_);
+void Session::resize(int visible_rows, int grid_width) {
+    viewport_.resize(visible_rows, grid_width);
+    keep_cursor_visible();
     notify();
+}
+
+void Session::keep_cursor_visible() {
+    viewport_.ensure_visible(cursor_, document_->column_widths());
 }
 
 void Session::move_cursor(int d_row, int d_col) {
@@ -67,7 +71,7 @@ void Session::move_cursor(int d_row, int d_col) {
 void Session::set_cursor(ss::core::CellAddress cell) {
     cell.check_valid();
     cursor_ = cell;
-    viewport_.ensure_visible(cursor_);
+    keep_cursor_visible();
 }
 
 ss::core::Range Session::target_range() const {
@@ -86,6 +90,7 @@ void Session::apply_edit(std::unique_ptr<EditCommand> command) {
     command->apply(*document_);
     history_.push(std::move(command));
     dirty_ = true;
+    keep_cursor_visible();
 }
 
 // После отмены документ всё равно считаем изменённым: сравнивать его
@@ -95,6 +100,7 @@ bool Session::undo() {
         return false;
     }
     dirty_ = true;
+    keep_cursor_visible();
     return true;
 }
 
@@ -103,11 +109,17 @@ bool Session::redo() {
         return false;
     }
     dirty_ = true;
+    keep_cursor_visible();
     return true;
 }
 
 void Session::set_status(std::string text, Status::Kind kind) {
     status_ = {.text = std::move(text), .kind = kind};
+}
+
+void Session::set_help_scroll(int line) {
+    const int count = static_cast<int>(help_lines().size());
+    help_scroll_ = std::clamp(line, 0, std::max(0, count - viewport_.visible_rows()));
 }
 
 void Session::replace_document(std::unique_ptr<ss::core::Spreadsheet> document,
@@ -252,6 +264,10 @@ std::string Session::formula_bar_text() const {
 
 std::vector<std::string> Session::help_lines() const {
     return HelpMode::lines(actions_, keymap_);
+}
+
+int Session::help_scroll() const {
+    return help_scroll_;
 }
 
 bool Session::dirty() const {

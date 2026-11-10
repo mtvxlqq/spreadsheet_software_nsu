@@ -9,6 +9,7 @@
 #include "actions/navigation_actions.hpp"
 #include "actions/quit_actions.hpp"
 #include "actions/style_actions.hpp"
+#include "actions/width_actions.hpp"
 #include "app/action_registry.hpp"
 
 namespace ss::app {
@@ -23,6 +24,12 @@ void add_move(ActionRegistry& registry, const std::string& name, const std::stri
 void add_page(ActionRegistry& registry, const std::string& name, const std::string& description,
               int direction) {
     registry.add(name, [=] { return std::make_unique<PageAction>(name, description, direction); });
+}
+
+void add_width_step(ActionRegistry& registry, const std::string& name,
+                    const std::string& description, int delta) {
+    registry.add(
+        name, [=] { return std::make_unique<ColumnWidthStepAction>(name, description, delta); });
 }
 
 }  // namespace
@@ -42,6 +49,9 @@ void register_actions(ActionRegistry& registry) {
     registry.add("redo", [] { return std::make_unique<RedoAction>(); });
     registry.add("format", [] { return std::make_unique<FormatAction>(); });
     registry.add("align", [] { return std::make_unique<AlignAction>(); });
+    add_width_step(registry, "column-wider", "столбец шире", 1);
+    add_width_step(registry, "column-narrower", "столбец уже", -1);
+    registry.add("width", [] { return std::make_unique<WidthAction>(); });
     registry.add("command-mode", [] { return std::make_unique<CommandModeAction>(); });
     registry.add("show-help", [] { return std::make_unique<ShowHelpAction>(); });
     registry.add("save", [] { return std::make_unique<SaveAction>(); });

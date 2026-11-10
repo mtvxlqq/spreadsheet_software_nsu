@@ -58,6 +58,10 @@ const CellStyle& Spreadsheet::style(CellAddress address) const {
     return styles_.get(address);
 }
 
+const ColumnWidths& Spreadsheet::column_widths() const {
+    return widths_;
+}
+
 CellContent Spreadsheet::content(CellAddress address) const {
     return {.raw = raw(address), .style = style(address)};
 }
@@ -72,6 +76,11 @@ void Spreadsheet::apply(const DocumentEdit& edit) {
 
     std::vector<CellAddress> changed;
     changed.reserve(edit.cells.size());
+    // копия тоже может бросить, поэтому делаем её заранее, а меняем через swap
+    std::optional<ColumnWidths> widths = edit.widths_after;
+    if (widths) {
+        std::swap(widths_, *widths);
+    }
     std::size_t done = 0;
     try {
         for (; done < prepared.size(); ++done) {
@@ -82,6 +91,9 @@ void Spreadsheet::apply(const DocumentEdit& edit) {
         }
         recalculate(changed);
     } catch (...) {
+        if (widths) {
+            std::swap(widths_, *widths);
+        }
         // ячейку, на которой упали, тоже возвращаем: стиль у неё мог уже поменяться
         roll_back(edit, std::min(done + 1, edit.cells.size()));
         throw;
