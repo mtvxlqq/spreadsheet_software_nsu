@@ -6,6 +6,8 @@
 #include <string_view>
 
 #include "core/address.hpp"
+#include "core/cell_style.hpp"
+#include "core/column_widths.hpp"
 #include "core/value.hpp"
 
 namespace ss::core {
@@ -22,6 +24,10 @@ public:
     // как будто пользователь ввёл raw в ячейку
     virtual void set_input(CellAddress address, std::string_view raw) = 0;
     virtual void clear(CellAddress address) = 0;
+    // оформление из файла; стиль можно дать и пустой ячейке
+    virtual void set_style(CellAddress address, CellStyle style) = 0;
+    // недопустимая ширина даёт LimitError
+    virtual void set_column_width(int col, int width) = 0;
 
 protected:
     CellSink() = default;
@@ -43,6 +49,10 @@ public:
     virtual ValuePtr value(CellAddress address) const = 0;
     // заполненные ячейки по строкам, в строке слева направо
     virtual void for_each_cell(const std::function<void(CellAddress)>& fn) const = 0;
+    // Ячейки со своим оформлением в том же порядке. Среди них бывают пустые.
+    virtual void for_each_style(
+        const std::function<void(CellAddress, const CellStyle&)>& fn) const = 0;
+    virtual const ColumnWidths& column_widths() const = 0;
 
 protected:
     CellSource() = default;

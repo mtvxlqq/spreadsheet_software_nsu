@@ -1,0 +1,16 @@
+SST 2
+A1	Товар
+B1	Доля
+A2	яблоки
+B2	0.2
+A3	груши
+B3	0.8
+A4	итого
+B4	=SUM(B2:B3)
+!style	A1	general	center
+!style	B1	general	center
+!style	B2	percent:0	auto
+!style	B3	percent:0	auto
+!style	B4	fixed:2	right
+!width	A	14
+!width	B	8

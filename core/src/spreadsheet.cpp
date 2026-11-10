@@ -54,6 +54,20 @@ void Spreadsheet::store(PreparedCell prepared) {
     }
 }
 
+void Spreadsheet::set_style(CellAddress address, CellStyle style) {
+    address.check_valid();
+    styles_.set(address, std::move(style));
+}
+
+void Spreadsheet::set_column_width(int col, int width) {
+    widths_.set(col, width);
+}
+
+void Spreadsheet::for_each_style(
+    const std::function<void(CellAddress, const CellStyle&)>& fn) const {
+    styles_.for_each(fn);
+}
+
 const CellStyle& Spreadsheet::style(CellAddress address) const {
     return styles_.get(address);
 }

@@ -184,7 +184,7 @@ TEST_F(ActionsTest, SaveWritesFile) {
     input("B2", "=A1*2");
     command("w " + file("t.sst"));
     EXPECT_FALSE(failed()) << session.status().text;
-    EXPECT_EQ(read_file(dir / "t.sst"), "SST 1\nA1\t42\nB2\t=A1*2\n");
+    EXPECT_EQ(read_file(dir / "t.sst"), "SST 2\nA1\t42\nB2\t=A1*2\n");
     EXPECT_FALSE(session.dirty());
     EXPECT_EQ(session.current_path(), fs::path(file("t.sst")));
     // временный файл не остался
@@ -198,7 +198,7 @@ TEST_F(ActionsTest, SaveWithoutPathUsesCurrentFile) {
     EXPECT_TRUE(session.dirty());
     command("w");
     EXPECT_FALSE(failed()) << session.status().text;
-    EXPECT_EQ(read_file(dir / "t.sst"), "SST 1\nA1\t1\nA2\t2\n");
+    EXPECT_EQ(read_file(dir / "t.sst"), "SST 2\nA1\t1\nA2\t2\n");
     EXPECT_FALSE(session.dirty());
 }
 
@@ -206,7 +206,7 @@ TEST_F(ActionsTest, CtrlSSavesToCurrentFile) {
     command("w " + file("t.sst"));
     input("A1", "5");
     session.handle_key("ctrl+s");
-    EXPECT_EQ(read_file(dir / "t.sst"), "SST 1\nA1\t5\n");
+    EXPECT_EQ(read_file(dir / "t.sst"), "SST 2\nA1\t5\n");
 }
 
 TEST_F(ActionsTest, SaveWithoutAnyPathFails) {
@@ -251,6 +251,32 @@ TEST_F(ActionsTest, SaveAndOpenRoundTrip) {
     EXPECT_EQ(shown("A1"), "привет");
     EXPECT_EQ(shown("A2"), "6");
     EXPECT_EQ(session.document().raw(at("A2")), "=A3*2");
+}
+
+// оформление переживает сохранение и открытие
+TEST_F(ActionsTest, SaveAndOpenKeepStylesAndWidths) {
+    input("A1", "0.256");
+    session.set_cursor(at("A1"));
+    command("format percent 1");
+    command("align center");
+    command("width 20");
+    session.set_cursor(at("C5"));
+    command("align right");
+    command("w " + file("t.sst"));
+    EXPECT_EQ(read_file(dir / "t.sst"), "SST 2\n"
+                                        "A1\t0.256\n"
+                                        "!style\tA1\tpercent:1\tcenter\n"
+                                        "!style\tC5\tgeneral\tright\n"
+                                        "!width\tA\t20\n");
+
+    command("e " + file("t.sst"));
+    EXPECT_FALSE(failed()) << session.status().text;
+    const ss::core::Spreadsheet& document = session.document();
+    EXPECT_EQ(document.style(at("A1")),
+              (ss::core::CellStyle{.format = "percent:1", .align = ss::core::Align::Center}));
+    EXPECT_EQ(document.style(at("C5")).align, ss::core::Align::Right);
+    EXPECT_EQ(document.column_widths().get(0), 20);
+    EXPECT_FALSE(session.dirty());
 }
 
 TEST_F(ActionsTest, OpenMissingFileKeepsDocument) {

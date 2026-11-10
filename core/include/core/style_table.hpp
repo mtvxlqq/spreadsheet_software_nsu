@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <unordered_map>
 
 #include "core/address.hpp"
@@ -15,6 +16,10 @@ public:
     const CellStyle& get(CellAddress address) const;
     // стиль по умолчанию не храним, чтобы таблица не росла от пустых записей
     void set(CellAddress address, CellStyle style);
+
+    // Ячейки со своим стилем по строкам, в строке слева направо. Порядок
+    // нужен, чтобы сохранённый файл не менялся от запуска к запуску.
+    void for_each(const std::function<void(CellAddress, const CellStyle&)>& fn) const;
 
 private:
     std::unordered_map<CellAddress, CellStyle> styles_;
